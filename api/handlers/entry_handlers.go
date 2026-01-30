@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/better-monitoring/bscout/api/presenter"
+	"github.com/better-monitoring/bscout/pkg/common"
 	"github.com/better-monitoring/bscout/pkg/entities"
 	"github.com/better-monitoring/bscout/pkg/entry"
 	"github.com/gofiber/fiber/v3"
@@ -11,8 +12,10 @@ import (
 
 func GetEntriesWithIdOrTypeFiler(service entry.IService) fiber.Handler {
 	return func(c fiber.Ctx) error {
-		spec := c.Params("spec")
-		entries, err := service.GetEntriesWithIdOrTypeFiler(spec, c.Query("find"))
+		specParam := c.Params("spec")
+		raw := c.Locals("querySpec")
+		qs, _ := raw.(*common.QuerySpec)
+		entries, err := service.SearchWithIdOrTypeFilter(specParam, qs)
 		if err != nil {
 			c.Status(http.StatusInternalServerError)
 			return c.JSON(presenter.EntryErrorResponse(err))
@@ -23,7 +26,9 @@ func GetEntriesWithIdOrTypeFiler(service entry.IService) fiber.Handler {
 
 func GetEntries(service entry.IService) fiber.Handler {
 	return func(c fiber.Ctx) error {
-		entries, err := service.GetEntries(c.Query("find"))
+		raw := c.Locals("querySpec")
+		qs, _ := raw.(*common.QuerySpec)
+		entries, err := service.Search(qs)
 		if err != nil {
 			c.Status(http.StatusInternalServerError)
 			return c.JSON(presenter.EntryErrorResponse(err))
@@ -41,7 +46,7 @@ func AddEntries(service entry.IService) fiber.Handler {
 			return c.JSON(presenter.EntryErrorResponse(err))
 		}
 
-		if err := service.CreateEntries(requestBody); err != nil {
+		if err := service.Create(requestBody); err != nil {
 			c.Status(http.StatusInternalServerError)
 			return c.JSON(presenter.EntryErrorResponse(err))
 		}
@@ -51,8 +56,9 @@ func AddEntries(service entry.IService) fiber.Handler {
 
 func RemoveEntries(service entry.IService) fiber.Handler {
 	return func(c fiber.Ctx) error {
-		find := c.Query("find")
-		if err := service.RemoveEntries(find); err != nil {
+		raw := c.Locals("querySpec")
+		qs, _ := raw.(*common.QuerySpec)
+		if err := service.Remove(qs); err != nil {
 			c.Status(http.StatusInternalServerError)
 			return c.JSON(presenter.EntryErrorResponse(err))
 		}

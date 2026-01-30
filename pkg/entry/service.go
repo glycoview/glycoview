@@ -8,45 +8,42 @@ import (
 )
 
 type IService interface {
-	CreateEntries(entries []entities.Entry) error
-	GetEntries(find string) ([]entities.Entry, error)
-	GetEntriesWithIdOrTypeFiler(spec string, find string) ([]entities.Entry, error)
-	RemoveEntries(find string) error
+	Create(items []entities.Entry) error
+	Search(spec *common.QuerySpec) ([]entities.Entry, error)
+	SearchWithIdOrTypeFilter(spec string, qs *common.QuerySpec) ([]entities.Entry, error)
+	Remove(spec *common.QuerySpec) error
 }
 
 type Service struct {
-	entryRepo          IRepository
-	queryHelperService common.IQueryHelper
+	entryRepo IRepository
 }
 
-func NewService(entryRepo IRepository, queryHelperService common.IQueryHelper) *Service {
-	return &Service{entryRepo: entryRepo, queryHelperService: queryHelperService}
+func NewService(entryRepo IRepository) *Service {
+	return &Service{entryRepo: entryRepo}
 }
 
-func (s *Service) CreateEntries(entries []entities.Entry) error {
-	return s.entryRepo.InsertEntries(entries)
+func (s *Service) Create(items []entities.Entry) error {
+	return s.entryRepo.Insert(items)
 }
-
-func (s *Service) GetEntriesWithIdOrTypeFiler(spec string, find string) ([]entities.Entry, error) {
-	querySpec, err := s.queryHelperService.ParseFindWithIdOrTypeFiler(spec, find)
-	if err != nil {
-		return nil, err
+func (s *Service) SearchWithIdOrTypeFilter(spec string, qs *common.QuerySpec) ([]entities.Entry, error) {
+	if qs == nil {
+		qs = &common.QuerySpec{}
 	}
-	return s.entryRepo.Find(context.Background(), querySpec)
+	qs.Filters = append(qs.Filters, common.Filter{Field: "type", Op: common.OpEq, Value: spec})
+	qs.Filters = append(qs.Filters, common.Filter{Field: "_id", Op: common.OpEq, Value: spec})
+	return s.entryRepo.Find(context.Background(), qs)
 }
 
-func (s *Service) GetEntries(find string) ([]entities.Entry, error) {
-	spec, err := s.queryHelperService.ParseFind(find)
-	if err != nil {
-		return nil, err
+func (s *Service) Search(qs *common.QuerySpec) ([]entities.Entry, error) {
+	if qs == nil {
+		qs = &common.QuerySpec{}
 	}
-	return s.entryRepo.Find(context.Background(), spec)
+	return s.entryRepo.Find(context.Background(), qs)
 }
 
-func (s *Service) RemoveEntries(find string) error {
-	spec, err := s.queryHelperService.ParseFind(find)
-	if err != nil {
-		return err
+func (s *Service) Remove(spec *common.QuerySpec) error {
+	if spec == nil {
+		spec = &common.QuerySpec{}
 	}
 	return s.entryRepo.Delete(context.Background(), spec)
 }

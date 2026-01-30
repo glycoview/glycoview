@@ -10,7 +10,7 @@ import (
 )
 
 type IRepository interface {
-	InsertEntries(entries []entities.Entry) error
+	Insert(entries []entities.Entry) error
 	Find(
 		ctx context.Context,
 		spec *common.QuerySpec,
@@ -40,7 +40,7 @@ func NewRepository(db *bun.DB) *Repository {
 		}}
 }
 
-func (r *Repository) InsertEntries(entries []entities.Entry) error {
+func (r *Repository) Insert(entries []entities.Entry) error {
 	for i := range entries {
 		entries[i].ID = ulid.Make().String()
 	}
