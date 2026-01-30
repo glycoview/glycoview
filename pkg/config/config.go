@@ -6,7 +6,9 @@ import (
 )
 
 const DEFAULT_DRIVER = "sqlite"
-const DEFAULT_SQLITE_PATH = "/etc/bscout/db.sqlite"
+
+// const DEFAULT_SQLITE_PATH = "/etc/bscout/db.sqlite"
+const DEFAULT_SQLITE_PATH = "./dummy/test.db"
 const DEFAULT_PORT = "8080"
 
 type Config struct {

@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/better-monitoring/bscout/internal/config"
-	"github.com/better-monitoring/bscout/internal/model"
+	"github.com/better-monitoring/bscout/pkg/config"
+	"github.com/better-monitoring/bscout/pkg/entities"
 	"github.com/uptrace/bun"
 	"github.com/uptrace/bun/dialect/pgdialect"
 	"github.com/uptrace/bun/dialect/sqlitedialect"
@@ -17,7 +17,7 @@ import (
 
 func createSchemas(db *bun.DB) error {
 	models := []any{
-		(*model.Entry)(nil),
+		(*entities.Entry)(nil),
 	}
 	ctx := context.Background()
 	for _, model := range models {
@@ -38,7 +38,8 @@ func ConnectDB(cfg *config.Config) (*bun.DB, error) {
 
 	switch cfg.Driver {
 	case "sqlite":
-		sqldb, err := sql.Open(sqliteshim.ShimName, fmt.Sprintf("file:%s?cache=shared&mode=rwc", cfg.DBSQLitePath))
+		var err error
+		sqldb, err = sql.Open(sqliteshim.ShimName, fmt.Sprintf("file:%s?cache=shared&mode=rwc", cfg.DBSQLitePath))
 		if err != nil {
 			return nil, fmt.Errorf("failed to open SQLite: %w", err)
 		}

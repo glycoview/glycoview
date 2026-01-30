@@ -3,8 +3,8 @@ package main
 import (
 	"log"
 
-	"github.com/better-monitoring/bscout/internal/app"
-	"github.com/better-monitoring/bscout/internal/config"
+	"github.com/better-monitoring/bscout/bootstrap"
+	"github.com/better-monitoring/bscout/pkg/config"
 )
 
 func main() {
@@ -13,8 +13,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
-
-	app := app.NewServer(cfg)
-
+	app := bootstrap.Bootstrap(cfg)
 	log.Fatal(app.Listen(":" + cfg.PORT))
 }

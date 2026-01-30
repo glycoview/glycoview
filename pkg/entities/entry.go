@@ -1,4 +1,4 @@
-package model
+package entities
 
 import (
 	"github.com/go-playground/validator/v10"
@@ -9,7 +9,7 @@ var validate = validator.New()
 
 type Entry struct {
 	bun.BaseModel `bun:"table:entries"`
-	ID            string `bun:"id,pk,notnull" validate:"required,uuid4" json:"id"`
+	ID            string `bun:"id,pk" json:"_id,omitempty"`
 	Type          string `bun:"type,notnull" validate:"required,oneof=sgv mbg cal etc" json:"type"`
 	DateString    string `bun:"date_string,notnull" validate:"required,datetime=2006-01-02T15:04:05Z07:00" json:"dateString"`
 	Date          int64  `bun:"date,notnull" validate:"required,gte=0" json:"date"`
