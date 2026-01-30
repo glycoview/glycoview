@@ -1,24 +1,22 @@
 package entities
 
 import (
-	"github.com/go-playground/validator/v10"
 	"github.com/uptrace/bun"
 )
 
-var validate = validator.New()
-
 type Entry struct {
 	bun.BaseModel `bun:"table:entries"`
-	ID            string `bun:"id,pk" json:"_id,omitempty"`
-	Type          string `bun:"type,notnull" validate:"required,oneof=sgv mbg cal etc" json:"type"`
-	DateString    string `bun:"date_string,notnull" validate:"required,datetime=2006-01-02T15:04:05Z07:00" json:"dateString"`
-	Date          int64  `bun:"date,notnull" validate:"required,gte=0" json:"date"`
-	SGV           int    `bun:"sgv,notnull" validate:"required,gte=0,lte=1000" json:"sgv"`
-	Direction     string `bun:"direction,notnull" validate:"required,oneof=DoubleUp SingleUp FortyFiveUp Flat FortyFiveDown SingleDown DoubleDown NotComputable RateOutOfRange" json:"direction"`
-	Noise         int    `bun:"noise,notnull" validate:"required,gte=0,lte=100" json:"noise"`
-	Filtered      int    `bun:"filtered,notnull" validate:"required,gte=0,lte=1000" json:"filtered"`
-	Unfiltered    int    `bun:"unfiltered,notnull" validate:"required,gte=0,lte=1000" json:"unfiltered"`
-	RSSI          int    `bun:"rssi,notnull" validate:"required,gte=0,lte=100" json:"rssi"`
+	DocumentBase
+	// Entry specific fields
+	Type       string `json:"type" validate:"required,oneof=sgv mbg cal etc"`
+	SGV        *int   `json:"sgv,omitempty" validate:"omitempty,gte=0,lte=1000"`
+	Direction  string `json:"direction,omitempty"`
+	Noise      *int   `json:"noise,omitempty" validate:"omitempty,gte=0,lte=100"`
+	Filtered   *int   `json:"filtered,omitempty" validate:"omitempty,gte=0,lte=1000"`
+	Unfiltered *int   `json:"unfiltered,omitempty" validate:"omitempty,gte=0,lte=1000"`
+	RSSI       *int   `json:"rssi,omitempty" validate:"omitempty,gte=0,lte=100"`
+	Units      string `json:"units,omitempty"`
+	DateString string `json:"dateString,omitempty"`
 }
 
 func (e *Entry) Validate() error {

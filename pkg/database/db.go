@@ -18,6 +18,11 @@ import (
 func createSchemas(db *bun.DB) error {
 	models := []any{
 		(*entities.Entry)(nil),
+		(*entities.DeviceStatus)(nil),
+		(*entities.Profile)(nil),
+		(*entities.Settings)(nil),
+		(*entities.Food)(nil),
+		(*entities.Treatment)(nil),
 	}
 	ctx := context.Background()
 	for _, model := range models {
