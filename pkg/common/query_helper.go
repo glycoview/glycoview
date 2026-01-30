@@ -2,12 +2,12 @@ package common
 
 import (
 	"fmt"
-	"net/url"
 	"regexp"
 )
 
 type IQueryHelper interface {
-	ParseFind(values url.Values) (*QuerySpec, error)
+	ParseFind(find string) (*QuerySpec, error)
+	ParseFindWithIdOrTypeFiler(spec string, find string) (*QuerySpec, error)
 }
 type QueryHelper struct{}
 
@@ -20,36 +20,52 @@ var (
 	findEqRe = regexp.MustCompile(`^find\[([^\]]+)\]$`)
 )
 
-func (s *QueryHelper) ParseFind(values url.Values) (*QuerySpec, error) {
+func (s *QueryHelper) ParseFindWithIdOrTypeFiler(spec string, find string) (*QuerySpec, error) {
+	filter_spec, err := s.ParseFind(find)
+	if err != nil {
+		return nil, err
+	}
+	filter_spec.Filters = append(filter_spec.Filters, Filter{
+		Field: "type",
+		Op:    OpEq,
+		Value: spec,
+	})
+	filter_spec.Filters = append(filter_spec.Filters, Filter{
+		Field: "_id",
+		Op:    OpEq,
+		Value: spec,
+	})
+
+	return filter_spec, nil
+}
+
+func (s *QueryHelper) ParseFind(find string) (*QuerySpec, error) {
 	spec := &QuerySpec{}
 
-	for key, vals := range values {
-		if len(vals) == 0 {
-			continue
+	matches := findOpRe.FindStringSubmatch(find)
+	if len(matches) == 3 {
+		field := matches[1]
+		opStr := matches[2]
+		op, err := mongoToRepoOp(opStr)
+		if err != nil {
+			return nil, err
 		}
+		spec.Filters = append(spec.Filters, Filter{
+			Field: field,
+			Op:    op,
+			Value: find,
+		})
+		return spec, nil
+	}
 
-		val := vals[0]
-
-		if m := findOpRe.FindStringSubmatch(key); len(m) == 3 {
-			op, err := mongoToRepoOp(m[2])
-			if err != nil {
-				return nil, err
-			}
-			spec.Filters = append(spec.Filters, Filter{
-				Field: m[1],
-				Op:    op,
-				Value: val,
-			})
-			continue
-		}
-
-		if m := findEqRe.FindStringSubmatch(key); len(m) == 2 {
-			spec.Filters = append(spec.Filters, Filter{
-				Field: m[1],
-				Op:    OpEq,
-				Value: val,
-			})
-		}
+	matches = findEqRe.FindStringSubmatch(find)
+	if len(matches) == 2 {
+		field := matches[1]
+		spec.Filters = append(spec.Filters, Filter{
+			Field: field,
+			Op:    OpEq,
+			Value: find,
+		})
 	}
 
 	return spec, nil

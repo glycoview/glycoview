@@ -9,5 +9,4 @@ func RegisterRoutes(app *fiber.App, deps Dependencies) {
 	apiV1 := app.Group("/api/v1")
 	v1.EntryRouter(apiV1, deps.EntryService)
 	v1.StatusRouter(apiV1)
-
 }

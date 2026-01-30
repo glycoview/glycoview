@@ -2,7 +2,6 @@ package entry
 
 import (
 	"context"
-	"net/url"
 
 	"github.com/better-monitoring/bscout/pkg/common"
 	"github.com/better-monitoring/bscout/pkg/entities"
@@ -10,7 +9,9 @@ import (
 
 type IService interface {
 	CreateEntries(entries []entities.Entry) error
-	GetEntries(values url.Values) ([]entities.Entry, error)
+	GetEntries(find string) ([]entities.Entry, error)
+	GetEntriesWithIdOrTypeFiler(spec string, find string) ([]entities.Entry, error)
+	RemoveEntries(find string) error
 }
 
 type Service struct {
@@ -26,10 +27,26 @@ func (s *Service) CreateEntries(entries []entities.Entry) error {
 	return s.entryRepo.InsertEntries(entries)
 }
 
-func (s *Service) GetEntries(values url.Values) ([]entities.Entry, error) {
-	spec, err := s.queryHelperService.ParseFind(values)
+func (s *Service) GetEntriesWithIdOrTypeFiler(spec string, find string) ([]entities.Entry, error) {
+	querySpec, err := s.queryHelperService.ParseFindWithIdOrTypeFiler(spec, find)
+	if err != nil {
+		return nil, err
+	}
+	return s.entryRepo.Find(context.Background(), querySpec)
+}
+
+func (s *Service) GetEntries(find string) ([]entities.Entry, error) {
+	spec, err := s.queryHelperService.ParseFind(find)
 	if err != nil {
 		return nil, err
 	}
 	return s.entryRepo.Find(context.Background(), spec)
+}
+
+func (s *Service) RemoveEntries(find string) error {
+	spec, err := s.queryHelperService.ParseFind(find)
+	if err != nil {
+		return err
+	}
+	return s.entryRepo.Delete(context.Background(), spec)
 }

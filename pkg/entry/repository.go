@@ -15,6 +15,7 @@ type IRepository interface {
 		ctx context.Context,
 		spec *common.QuerySpec,
 	) ([]entities.Entry, error)
+	Delete(ctx context.Context, spec *common.QuerySpec) error
 }
 
 type Repository struct {
@@ -69,4 +70,16 @@ func (r *Repository) Find(
 	var entries []entities.Entry
 	err := q.Scan(ctx, &entries)
 	return entries, err
+}
+
+func (r *Repository) Delete(ctx context.Context, spec *common.QuerySpec) error {
+	q := r.db.NewDelete().Model((*entities.Entry)(nil))
+
+	for _, f := range spec.Filters {
+		col := r.fieldMap[f.Field]
+		q = q.Where("? "+string(f.Op)+" ?", bun.Ident(col), f.Value)
+	}
+
+	_, err := q.Exec(ctx)
+	return err
 }
