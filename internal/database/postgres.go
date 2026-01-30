@@ -32,7 +32,7 @@ func createSchemas(db *bun.DB) error {
 	return nil
 }
 
-func ConnectDB(cfg config.Config) (*bun.DB, error) {
+func ConnectDB(cfg *config.Config) (*bun.DB, error) {
 	var sqldb *sql.DB
 	var dialect schema.Dialect
 
