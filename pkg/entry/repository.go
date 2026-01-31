@@ -14,30 +14,19 @@ type IRepository interface {
 	Find(
 		ctx context.Context,
 		spec *common.QuerySpec,
-	) ([]entities.Entry, error)
+	) ([]*entities.Entry, error)
+	GetOne(ctx context.Context, spec *common.QuerySpec) (*entities.Entry, error)
 	Delete(ctx context.Context, spec *common.QuerySpec) error
 }
 
 type Repository struct {
-	db       *bun.DB
-	fieldMap map[string]string
+	db *bun.DB
 }
 
 func NewRepository(db *bun.DB) *Repository {
 	return &Repository{
 		db: db,
-		fieldMap: map[string]string{
-			"_id":         "id",
-			"type":        "type",
-			"date_string": "date_string",
-			"date":        "date",
-			"sgv":         "sgv",
-			"direction":   "direction",
-			"noise":       "noise",
-			"filtered":    "filtered",
-			"unfiltered":  "unfiltered",
-			"rssi":        "rssi",
-		}}
+	}
 }
 
 func (r *Repository) Insert(entries []entities.Entry) error {
@@ -48,16 +37,32 @@ func (r *Repository) Insert(entries []entities.Entry) error {
 	return err
 }
 
+func (r *Repository) GetOne(ctx context.Context, spec *common.QuerySpec) (*entities.Entry, error) {
+	q := r.db.NewSelect().Model((*entities.Entry)(nil))
+
+	for _, f := range spec.Filters {
+		q = q.Where("? "+string(f.Op)+" ?", bun.Ident(f.Field), f.Value)
+	}
+	var entries []*entities.Entry
+	err := q.Limit(1).Scan(ctx, &entries)
+	if err != nil {
+		return nil, err
+	}
+	if len(entries) == 0 {
+		return nil, nil
+	}
+	return entries[0], nil
+}
+
 func (r *Repository) Find(
 	ctx context.Context,
 	spec *common.QuerySpec,
-) ([]entities.Entry, error) {
+) ([]*entities.Entry, error) {
 
 	q := r.db.NewSelect().Model((*entities.Entry)(nil))
 
 	for _, f := range spec.Filters {
-		col := r.fieldMap[f.Field]
-		q = q.Where("? "+string(f.Op)+" ?", bun.Ident(col), f.Value)
+		q = q.Where("? "+string(f.Op)+" ?", bun.Ident(f.Field), f.Value)
 	}
 
 	if spec.Limit > 0 {
@@ -67,7 +72,7 @@ func (r *Repository) Find(
 		q = q.Offset(spec.Offset)
 	}
 
-	var entries []entities.Entry
+	var entries []*entities.Entry
 	err := q.Scan(ctx, &entries)
 	return entries, err
 }
@@ -76,8 +81,7 @@ func (r *Repository) Delete(ctx context.Context, spec *common.QuerySpec) error {
 	q := r.db.NewDelete().Model((*entities.Entry)(nil))
 
 	for _, f := range spec.Filters {
-		col := r.fieldMap[f.Field]
-		q = q.Where("? "+string(f.Op)+" ?", bun.Ident(col), f.Value)
+		q = q.Where("? "+string(f.Op)+" ?", bun.Ident(f.Field), f.Value)
 	}
 
 	_, err := q.Exec(ctx)

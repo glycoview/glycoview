@@ -5,13 +5,13 @@ import (
 
 	"github.com/better-monitoring/bscout/api/presenter"
 	"github.com/better-monitoring/bscout/pkg/common"
+	"github.com/better-monitoring/bscout/pkg/devicestatus"
 	"github.com/better-monitoring/bscout/pkg/entities"
-	"github.com/better-monitoring/bscout/pkg/entry"
 	"github.com/gofiber/fiber/v3"
 )
 
-// Entries
-func SearchEntries(svc entry.IService) fiber.Handler {
+// Device Status
+func SearchDeviceStatus(svc devicestatus.IService) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		raw := c.Locals("querySpec")
 		spec, _ := raw.(*common.QuerySpec)
@@ -23,13 +23,13 @@ func SearchEntries(svc entry.IService) fiber.Handler {
 			c.Status(http.StatusInternalServerError)
 			return c.JSON(presenter.ErrorResponse(http.StatusInternalServerError, err))
 		}
-		res := presenter.EntrySuccessResponse(items)
+		res := presenter.DeviceStatusSuccessResponse(items)
 		c.Status(http.StatusOK)
 		return c.JSON(presenter.SearchListResponse(res))
 	}
 }
 
-func GetOneEntry(svc entry.IService) fiber.Handler {
+func GetOneDeviceStatus(svc devicestatus.IService) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		raw := c.Locals("querySpec")
 		spec, _ := raw.(*common.QuerySpec)
@@ -41,15 +41,15 @@ func GetOneEntry(svc entry.IService) fiber.Handler {
 			c.Status(http.StatusInternalServerError)
 			return c.JSON(presenter.ErrorResponse(http.StatusInternalServerError, err))
 		}
-		res := presenter.EntryFromEntity(item)
+		res := presenter.DeviceStatusFromEntity(item)
 		c.Status(http.StatusOK)
 		return c.JSON(presenter.SearchObjectResponse(res))
 	}
 }
 
-func AddEntry(svc entry.IService) fiber.Handler {
+func AddDeviceStatus(svc devicestatus.IService) fiber.Handler {
 	return func(c fiber.Ctx) error {
-		var body []entities.Entry
+		var body []entities.DeviceStatus
 		if err := c.Bind().Body(&body); err != nil {
 			c.Status(http.StatusBadRequest)
 			return c.JSON(presenter.ErrorResponse(http.StatusBadRequest, err))
@@ -63,7 +63,7 @@ func AddEntry(svc entry.IService) fiber.Handler {
 	}
 }
 
-func RemoveEntry(svc entry.IService) fiber.Handler {
+func RemoveDeviceStatus(svc devicestatus.IService) fiber.Handler {
 	return func(c fiber.Ctx) error {
 		raw := c.Locals("querySpec")
 		spec, _ := raw.(*common.QuerySpec)

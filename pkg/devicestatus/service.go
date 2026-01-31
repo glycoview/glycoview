@@ -9,26 +9,40 @@ import (
 
 type IService interface {
 	Create(items []entities.DeviceStatus) error
-	Search(spec *common.QuerySpec) ([]entities.DeviceStatus, error)
+	Search(spec *common.QuerySpec) ([]*entities.DeviceStatus, error)
+	GetOne(spec *common.QuerySpec) (*entities.DeviceStatus, error)
 	Remove(spec *common.QuerySpec) error
 }
 
 type Service struct {
-	repo IRepository
+	entryRepo IRepository
 }
 
-func NewService(repo IRepository) *Service {
-	return &Service{repo: repo}
+func NewService(entryRepo IRepository) *Service {
+	return &Service{entryRepo: entryRepo}
 }
 
 func (s *Service) Create(items []entities.DeviceStatus) error {
-	return s.repo.Insert(items)
+	return s.entryRepo.Insert(items)
 }
 
-func (s *Service) Search(spec *common.QuerySpec) ([]entities.DeviceStatus, error) {
-	return s.repo.Find(context.Background(), spec)
+func (s *Service) GetOne(spec *common.QuerySpec) (*entities.DeviceStatus, error) {
+	if spec == nil {
+		spec = &common.QuerySpec{}
+	}
+	return s.entryRepo.GetOne(context.Background(), spec)
+}
+
+func (s *Service) Search(qs *common.QuerySpec) ([]entities.DeviceStatus, error) {
+	if qs == nil {
+		qs = &common.QuerySpec{}
+	}
+	return s.entryRepo.Find(context.Background(), qs)
 }
 
 func (s *Service) Remove(spec *common.QuerySpec) error {
-	return s.repo.Delete(context.Background(), spec)
+	if spec == nil {
+		spec = &common.QuerySpec{}
+	}
+	return s.entryRepo.Delete(context.Background(), spec)
 }

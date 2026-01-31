@@ -1,20 +1,21 @@
 package presenter
 
 import (
-	"net/http"
 	"time"
 
 	"github.com/gofiber/fiber/v3"
 )
 
-// ErrorResponse returns a standard error wrapper
-func ErrorResponse(err error) *fiber.Map {
-	return &fiber.Map{"status": http.StatusInternalServerError, "error": err.Error()}
+func ErrorResponse(status int, err error) *fiber.Map {
+	return &fiber.Map{"status": status, "error": err.Error()}
 }
 
-// SearchResponse returns an empty 200 search result
-func SearchResponse() *fiber.Map {
-	return &fiber.Map{"status": 200, "result": []interface{}{}}
+func SearchListResponse[T any](data []*T) *fiber.Map {
+	return &fiber.Map{"status": 200, "result": data}
+}
+
+func SearchObjectResponse[T any](data *T) *fiber.Map {
+	return &fiber.Map{"status": 200, "result": data}
 }
 
 // CreateResponseCreated returns inline_response_201

@@ -7,14 +7,21 @@ type DeviceStatus struct {
 	SomeProperty string `json:"some_property,omitempty"`
 }
 
-func DeviceStatusSuccessResponse(items *[]entities.DeviceStatus) *[]DeviceStatus {
-	var resp []DeviceStatus
-	for _, v := range *items {
+func DeviceStatusSuccessResponse(items []*entities.DeviceStatus) []*DeviceStatus {
+	var resp []*DeviceStatus
+	for _, v := range items {
 		d := DeviceStatus{
 			DocumentBase: DocumentBaseFromEntity(v.DocumentBase),
 			SomeProperty: v.SomeProperty,
 		}
-		resp = append(resp, d)
+		resp = append(resp, &d)
 	}
-	return &resp
+	return resp
+}
+
+func DeviceStatusFromEntity(e *entities.DeviceStatus) *DeviceStatus {
+	return &DeviceStatus{
+		DocumentBase: DocumentBaseFromEntity(e.DocumentBase),
+		SomeProperty: e.SomeProperty,
+	}
 }

@@ -9,8 +9,8 @@ import (
 
 type IService interface {
 	Create(items []entities.Entry) error
-	Search(spec *common.QuerySpec) ([]entities.Entry, error)
-	SearchWithIdOrTypeFilter(spec string, qs *common.QuerySpec) ([]entities.Entry, error)
+	Search(spec *common.QuerySpec) ([]*entities.Entry, error)
+	GetOne(spec *common.QuerySpec) (*entities.Entry, error)
 	Remove(spec *common.QuerySpec) error
 }
 
@@ -25,13 +25,12 @@ func NewService(entryRepo IRepository) *Service {
 func (s *Service) Create(items []entities.Entry) error {
 	return s.entryRepo.Insert(items)
 }
-func (s *Service) SearchWithIdOrTypeFilter(spec string, qs *common.QuerySpec) ([]entities.Entry, error) {
-	if qs == nil {
-		qs = &common.QuerySpec{}
+
+func (s *Service) GetOne(spec *common.QuerySpec) (*entities.Entry, error) {
+	if spec == nil {
+		spec = &common.QuerySpec{}
 	}
-	qs.Filters = append(qs.Filters, common.Filter{Field: "type", Op: common.OpEq, Value: spec})
-	qs.Filters = append(qs.Filters, common.Filter{Field: "_id", Op: common.OpEq, Value: spec})
-	return s.entryRepo.Find(context.Background(), qs)
+	return s.entryRepo.GetOne(context.Background(), spec)
 }
 
 func (s *Service) Search(qs *common.QuerySpec) ([]entities.Entry, error) {

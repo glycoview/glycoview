@@ -7,7 +7,6 @@ import (
 type Entry struct {
 	bun.BaseModel `bun:"table:entries"`
 	DocumentBase
-	// Entry specific fields
 	Type       string `json:"type" validate:"required,oneof=sgv mbg cal etc"`
 	SGV        *int   `json:"sgv,omitempty" validate:"omitempty,gte=0,lte=1000"`
 	Direction  string `json:"direction,omitempty"`

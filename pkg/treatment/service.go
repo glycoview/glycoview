@@ -10,19 +10,39 @@ import (
 type IService interface {
 	Create(items []entities.Treatment) error
 	Search(spec *common.QuerySpec) ([]entities.Treatment, error)
+	GetOne(spec *common.QuerySpec) (*entities.Treatment, error)
 	Remove(spec *common.QuerySpec) error
 }
 
-type Service struct{ repo IRepository }
+type Service struct {
+	treatmentRepo IRepository
+}
 
-func NewService(repo IRepository) *Service { return &Service{repo: repo} }
+func NewService(treatmentRepo IRepository) *Service {
+	return &Service{treatmentRepo: treatmentRepo}
+}
 
-func (s *Service) Create(items []entities.Treatment) error { return s.repo.Insert(items) }
+func (s *Service) Create(items []entities.Treatment) error {
+	return s.treatmentRepo.Insert(items)
+}
 
-func (s *Service) Search(spec *common.QuerySpec) ([]entities.Treatment, error) {
-	return s.repo.Find(context.Background(), spec)
+func (s *Service) GetOne(spec *common.QuerySpec) (*entities.Treatment, error) {
+	if spec == nil {
+		spec = &common.QuerySpec{}
+	}
+	return s.treatmentRepo.GetOne(context.Background(), spec)
+}
+
+func (s *Service) Search(qs *common.QuerySpec) ([]entities.Treatment, error) {
+	if qs == nil {
+		qs = &common.QuerySpec{}
+	}
+	return s.treatmentRepo.Find(context.Background(), qs)
 }
 
 func (s *Service) Remove(spec *common.QuerySpec) error {
-	return s.repo.Delete(context.Background(), spec)
+	if spec == nil {
+		spec = &common.QuerySpec{}
+	}
+	return s.treatmentRepo.Delete(context.Background(), spec)
 }

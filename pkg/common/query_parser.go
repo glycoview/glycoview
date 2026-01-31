@@ -21,7 +21,18 @@ var opMap = map[string]Operator{
 	"re":  OpIn,
 }
 
-func ParseQueryArgs(args map[string]string) (*QuerySpec, error) {
+func ParseGetQueryArgs(identifier string, if_modified_since []string) (*QuerySpec, error) {
+	spec := &QuerySpec{}
+	spec.Filters = append(spec.Filters, Filter{Field: "identifier", Op: OpEq, Value: identifier})
+	if len(if_modified_since) > 0 {
+		if ts, err := parseDateToMillis(if_modified_since[0]); err == nil {
+			spec.Filters = append(spec.Filters, Filter{Field: "srvModified", Op: OpGt, Value: ts})
+		}
+	}
+	return spec, nil
+}
+
+func ParseSearchQueryArgs(args map[string]string) (*QuerySpec, error) {
 	spec := &QuerySpec{}
 
 	VisitAll(args, func(key, val string) {

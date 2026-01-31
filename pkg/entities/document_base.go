@@ -4,7 +4,7 @@ import "github.com/uptrace/bun"
 
 type DocumentBase struct {
 	// DB-friendly column names (snake_case) with JSON camelCase for API
-	Identifier  string        `bun:"identifier" json:"identifier,omitempty"`
+	Identifier  string        `bun:"identifier,pk" json:"identifier,omitempty"`
 	Date        int64         `bun:"date,notnull" json:"date" validate:"required,gte=0"`
 	UTCOffset   *int          `bun:"utc_offset" json:"utcOffset,omitempty"`
 	App         string        `bun:"app,notnull" json:"app,omitempty" validate:"required"`

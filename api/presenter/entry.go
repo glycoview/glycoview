@@ -18,9 +18,9 @@ type Entry struct {
 	Units      string `json:"units,omitempty"`
 }
 
-func EntrySuccessResponse(entries *[]entities.Entry) *[]Entry {
-	var response []Entry
-	for _, data := range *entries {
+func EntrySuccessResponse(entries []*entities.Entry) []*Entry {
+	var response []*Entry
+	for _, data := range entries {
 		base := DocumentBaseFromEntity(data.DocumentBase)
 		entry := Entry{
 			DocumentBase: base,
@@ -34,9 +34,24 @@ func EntrySuccessResponse(entries *[]entities.Entry) *[]Entry {
 			RSSI:         data.RSSI,
 			Units:        data.Units,
 		}
-		response = append(response, entry)
+		response = append(response, &entry)
 	}
-	return &response
+	return response
+}
+
+func EntryFromEntity(e *entities.Entry) *Entry {
+	return &Entry{
+		DocumentBase: DocumentBaseFromEntity(e.DocumentBase),
+		Type:         e.Type,
+		DateString:   e.DateString,
+		SGV:          e.SGV,
+		Direction:    e.Direction,
+		Noise:        e.Noise,
+		Filtered:     e.Filtered,
+		Unfiltered:   e.Unfiltered,
+		RSSI:         e.RSSI,
+		Units:        e.Units,
+	}
 }
 
 func EntryErrorResponse(err error) *fiber.Map {
