@@ -1,0 +1,8 @@
+{
+  "name": "bscout-js-compat",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:jscompat": "node --test --test-concurrency=1 jscompat/*.test.js"
+  }
+}
