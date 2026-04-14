@@ -92,7 +92,7 @@ jobs:
           enable-ssh: 0
           enable-cloud-init: 0
           export-last-stage-only: true
-          increase-runner-disk-size: true
+          increase-runner-disk-size: false
           compression: xz
           timezone: Europe/Berlin
           locale: en_US.UTF-8
