@@ -92,7 +92,7 @@ jobs:
           stage-list: stage0 stage1 stage2 ./deploy/pi-gen/stage-glycoview
           hostname: glycoview
           username: glycoview
-          password: glycoview
+          password: ''
           disable-first-boot-user-rename: 1
           enable-ssh: 0
           enable-cloud-init: 0
@@ -127,14 +127,16 @@ jobs:
             ${{ steps.pigen.outputs.image-path }}
             ${{ steps.pigen.outputs.image-path }}.sha256
           body: |
-            Flash the `.img.xz` file to a Raspberry Pi SD card using Raspberry Pi Imager or `dd`.
+            Flash the `.img.xz` file to a Raspberry Pi SD card with Raspberry Pi Imager.
 
-            On first boot, the image starts Docker, initializes the local Swarm, and deploys the GlycoView appliance stack.
+            On first boot, the appliance generates its own database password and agent token, starts Docker, initializes the local Swarm, and deploys GlycoView automatically.
 
-            Before first boot you can edit `glycoview-firstboot.env` on the boot partition to override:
+            Default local address:
 
-            - `GLYCOVIEW_DOMAIN`
-            - `POSTGRES_PASSWORD`
-            - `GLYCOVIEW_AGENT_TOKEN`
-            - `GLYCOVIEW_TAG`
-            - `GLYCOVIEW_AGENT_TAG`
+            - `http://glycoview.local`
+
+            After the first boot, open GlycoView in the browser and finish onboarding there.
+
+            If you want to expose the appliance publicly, change the domain and TLS settings later from the web UI under `Settings`.
+
+            This image already embeds release `${{ steps.vars.outputs.release_tag }}` for both `glycoview` and `glycoview-agent`.
