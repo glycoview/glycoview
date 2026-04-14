@@ -15,6 +15,12 @@ type TLSProvider struct {
 	Fields []TLSField `json:"fields,omitempty"`
 }
 
+type DynamicDNSProvider struct {
+	ID     string     `json:"id"`
+	Label  string     `json:"label"`
+	Fields []TLSField `json:"fields,omitempty"`
+}
+
 type TLSConfig struct {
 	Domain        string            `json:"domain"`
 	Email         string            `json:"email"`
@@ -38,24 +44,40 @@ type UpdateState struct {
 }
 
 type State struct {
-	TLS    TLSConfig   `json:"tls"`
-	Update UpdateState `json:"update"`
+	TLS        TLSConfig        `json:"tls"`
+	DynamicDNS DynamicDNSConfig `json:"dynamicDns"`
+	Update     UpdateState      `json:"update"`
+}
+
+type DynamicDNSConfig struct {
+	Enabled         bool              `json:"enabled"`
+	Provider        string            `json:"provider,omitempty"`
+	Zone            string            `json:"zone,omitempty"`
+	RecordName      string            `json:"recordName,omitempty"`
+	IntervalMinutes int               `json:"intervalMinutes,omitempty"`
+	Env             map[string]string `json:"env,omitempty"`
+	LastKnownIP     string            `json:"lastKnownIp,omitempty"`
+	LastCheckedAt   time.Time         `json:"lastCheckedAt,omitempty"`
+	LastSyncedAt    time.Time         `json:"lastSyncedAt,omitempty"`
+	LastError       string            `json:"lastError,omitempty"`
+	ConfiguredAt    time.Time         `json:"configuredAt,omitempty"`
 }
 
 type StatusResponse struct {
-	Service           string    `json:"service"`
-	DockerManaged     bool      `json:"dockerManaged"`
-	StackName         string    `json:"stackName"`
-	StackFile         string    `json:"stackFile"`
-	StackEnvFile      string    `json:"stackEnvFile"`
-	CurrentTag        string    `json:"currentTag"`
-	CurrentImage      string    `json:"currentImage"`
-	CurrentAgentTag   string    `json:"currentAgentTag"`
-	CurrentAgentImage string    `json:"currentAgentImage"`
-	LastAction        string    `json:"lastAction,omitempty"`
-	LastMessage       string    `json:"lastMessage,omitempty"`
-	LastActionAt      time.Time `json:"lastActionAt,omitempty"`
-	TLS               TLSConfig `json:"tls"`
+	Service           string           `json:"service"`
+	DockerManaged     bool             `json:"dockerManaged"`
+	StackName         string           `json:"stackName"`
+	StackFile         string           `json:"stackFile"`
+	StackEnvFile      string           `json:"stackEnvFile"`
+	CurrentTag        string           `json:"currentTag"`
+	CurrentImage      string           `json:"currentImage"`
+	CurrentAgentTag   string           `json:"currentAgentTag"`
+	CurrentAgentImage string           `json:"currentAgentImage"`
+	LastAction        string           `json:"lastAction,omitempty"`
+	LastMessage       string           `json:"lastMessage,omitempty"`
+	LastActionAt      time.Time        `json:"lastActionAt,omitempty"`
+	TLS               TLSConfig        `json:"tls"`
+	DynamicDNS        DynamicDNSConfig `json:"dynamicDns"`
 }
 
 type UpdateCheckResponse struct {

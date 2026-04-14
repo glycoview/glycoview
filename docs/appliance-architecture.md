@@ -33,6 +33,7 @@ Services:
   - Docker socket access
   - Certificate provider config writes
   - Update orchestration and rollback
+  - Shared-token auth for dashboard control requests
 
 ## Why Swarm
 
@@ -81,7 +82,7 @@ Provider support should be implemented through Traefik's ACME DNS support, which
 - Gandi
 - Google Cloud DNS
 
-Credentials are written by `glycoview-agent` into Docker secrets or encrypted local config, never stored in plaintext in Postgres.
+Credentials are written by `glycoview-agent` into Docker secrets or encrypted local config, never stored in plaintext in Postgres. The agent state file is encrypted at rest with `GLYCOVIEW_AGENT_STATE_KEY` or, by default, the shared `GLYCOVIEW_AGENT_TOKEN`.
 
 ## Update Model
 
@@ -130,4 +131,4 @@ This repository will contain:
 - bootstrap assets
 - GitHub Actions for release automation
 
-The full certificate provider UX and rolling update orchestration are future implementation steps; this document defines the contract for that work.
+The full certificate provider UX and rolling update orchestration exist in a first usable version; remaining work is hardening, richer progress reporting, and more provider coverage.

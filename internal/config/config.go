@@ -13,6 +13,7 @@ type Config struct {
 	JWTSecret      string
 	DatabaseURL    string
 	AgentURL       string
+	AgentToken     string
 	UIBuildOnStart bool
 	Enable         []string
 	DefaultRoles   []string
@@ -27,6 +28,7 @@ func Load() Config {
 		JWTSecret:      envOrDefault("JWT_SECRET", envOrDefault("API_SECRET", "change-me")),
 		DatabaseURL:    os.Getenv("DATABASE_URL"),
 		AgentURL:       strings.TrimSpace(os.Getenv("GLYCOVIEW_AGENT_URL")),
+		AgentToken:     strings.TrimSpace(os.Getenv("GLYCOVIEW_AGENT_TOKEN")),
 		UIBuildOnStart: envBoolOrDefault("UI_BUILD_ON_START", true),
 		Enable:         splitCSV(envOrDefault("ENABLE", "careportal,api,rawbg")),
 		DefaultRoles:   splitCSV(envOrDefault("AUTH_DEFAULT_ROLES", "readable")),

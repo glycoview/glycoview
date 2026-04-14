@@ -59,6 +59,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       DATABASE_URL: postgres://${POSTGRES_USER:-glycoview}:${POSTGRES_PASSWORD:-glycoview}@postgres:5432/${POSTGRES_DB:-glycoview}?sslmode=disable
       GLYCOVIEW_AGENT_URL: http://glycoview-agent:8090
+      GLYCOVIEW_AGENT_TOKEN: ${GLYCOVIEW_AGENT_TOKEN}
       UI_BUILD_ON_START: "false"
     networks:
       - edge
@@ -90,6 +91,7 @@ services:
     image: ${GLYCOVIEW_AGENT_IMAGE:-ghcr.io/glycoview/glycoview-agent}:${GLYCOVIEW_AGENT_TAG:-latest}
     environment:
       GLYCOVIEW_AGENT_ADDR: :8090
+      GLYCOVIEW_AGENT_TOKEN: ${GLYCOVIEW_AGENT_TOKEN}
       GLYCOVIEW_STACK_NAME: glycoview
       GLYCOVIEW_STACK_FILE: /opt/glycoview/stack/stack.yml
       GLYCOVIEW_STACK_ENV_FILE: /opt/glycoview/stack/.env

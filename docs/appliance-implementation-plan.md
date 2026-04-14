@@ -37,6 +37,12 @@ Implement `glycoview-agent` APIs:
 
 Initial version may return `501` for update and TLS write flows while the stack/build plumbing lands.
 
+Status:
+
+- implemented
+- protected by shared `GLYCOVIEW_AGENT_TOKEN`
+- appliance state encryption available via `GLYCOVIEW_AGENT_STATE_KEY` or the shared agent token
+
 ## Phase 4: Dashboard Integration
 
 Add admin-only dashboard pages:

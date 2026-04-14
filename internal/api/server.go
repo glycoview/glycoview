@@ -3,16 +3,18 @@ package api
 import (
 	"net/http"
 
+	nsv1 "github.com/glycoview/nightscout-api/api/v1"
+	nsv3 "github.com/glycoview/nightscout-api/api/v3"
+	nsconfig "github.com/glycoview/nightscout-api/config"
+	nsdeps "github.com/glycoview/nightscout-api/deps"
+	"github.com/glycoview/nightscout-api/httpx"
 	"github.com/go-chi/chi/v5"
 
-	"github.com/better-monitoring/glycoview/internal/auth"
-	"github.com/better-monitoring/glycoview/internal/config"
-	"github.com/better-monitoring/glycoview/internal/dashboardauth"
-	"github.com/better-monitoring/glycoview/internal/httpx"
-	v1 "github.com/better-monitoring/glycoview/internal/nightscout/v1"
-	v3 "github.com/better-monitoring/glycoview/internal/nightscout/v3"
-	"github.com/better-monitoring/glycoview/internal/store"
-	"github.com/better-monitoring/glycoview/internal/ui"
+	"github.com/glycoview/glycoview/internal/auth"
+	"github.com/glycoview/glycoview/internal/config"
+	"github.com/glycoview/glycoview/internal/dashboardauth"
+	"github.com/glycoview/glycoview/internal/store"
+	"github.com/glycoview/glycoview/internal/ui"
 )
 
 type Server struct {
@@ -34,22 +36,22 @@ func New(cfg config.Config, dataStore store.Store, authManager *auth.Manager, ap
 
 func (s *Server) routes() http.Handler {
 	r := chi.NewRouter()
+	nsdep := nsdeps.Dependencies{
+		Config: nsconfig.Config{
+			APISecret:    s.Config.APISecret,
+			JWTSecret:    s.Config.JWTSecret,
+			Enable:       append([]string(nil), s.Config.Enable...),
+			DefaultRoles: append([]string(nil), s.Config.DefaultRoles...),
+			API3MaxLimit: s.Config.API3MaxLimit,
+			AppVersion:   s.Config.AppVersion,
+		}.WithDefaults(),
+		Store: s.Store,
+		Auth:  s.Auth,
+	}
 
-	r.Mount("/api", v1.NewRouter(v1.Dependencies{
-		Config: s.Config,
-		Store:  s.Store,
-		Auth:   s.Auth,
-	}))
-	r.Mount("/api/v1", v1.NewRouter(v1.Dependencies{
-		Config: s.Config,
-		Store:  s.Store,
-		Auth:   s.Auth,
-	}))
-	r.Mount("/api/v3", v3.NewRouter(v3.Dependencies{
-		Config: s.Config,
-		Store:  s.Store,
-		Auth:   s.Auth,
-	}))
+	r.Mount("/api", nsv1.NewNightscoutV1Router(nsdep))
+	r.Mount("/api/v1", nsv1.NewNightscoutV1Router(nsdep))
+	r.Mount("/api/v3", nsv3.NewNightscoutV3Router(nsdep))
 
 	r.Get("/api/v2/authorization/request/{accessToken}", func(w http.ResponseWriter, r *http.Request) {
 		token, err := s.Auth.IssueJWT(chi.URLParam(r, "accessToken"))

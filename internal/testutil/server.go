@@ -4,11 +4,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 
-	"github.com/better-monitoring/glycoview/internal/api"
-	"github.com/better-monitoring/glycoview/internal/auth"
-	"github.com/better-monitoring/glycoview/internal/config"
-	"github.com/better-monitoring/glycoview/internal/dashboardauth"
-	"github.com/better-monitoring/glycoview/internal/store/memory"
+	"github.com/glycoview/glycoview/internal/api"
+	"github.com/glycoview/glycoview/internal/auth"
+	"github.com/glycoview/glycoview/internal/config"
+	"github.com/glycoview/glycoview/internal/dashboardauth"
+	"github.com/glycoview/glycoview/internal/store/memory"
 )
 
 type Harness struct {

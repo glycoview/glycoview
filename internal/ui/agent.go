@@ -14,16 +14,18 @@ import (
 
 type agentClient struct {
 	baseURL string
+	token   string
 	client  *http.Client
 }
 
-func newAgentClient(baseURL string) *agentClient {
+func newAgentClient(baseURL, token string) *agentClient {
 	baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
 	if baseURL == "" {
 		return nil
 	}
 	return &agentClient{
 		baseURL: baseURL,
+		token:   strings.TrimSpace(token),
 		client:  &http.Client{Timeout: 20 * time.Second},
 	}
 }
@@ -53,6 +55,9 @@ func (c *agentClient) do(ctx context.Context, method, path string, body any, dst
 	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, reader)
 	if err != nil {
 		return err
+	}
+	if c.token != "" {
+		req.Header.Set("X-GlycoView-Agent-Token", c.token)
 	}
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")

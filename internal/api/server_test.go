@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/better-monitoring/glycoview/internal/config"
-	storepkg "github.com/better-monitoring/glycoview/internal/store"
-	"github.com/better-monitoring/glycoview/internal/testutil"
+	"github.com/glycoview/glycoview/internal/config"
+	storepkg "github.com/glycoview/glycoview/internal/store"
+	"github.com/glycoview/glycoview/internal/testutil"
 )
 
 func TestV1StatusAndEntries(t *testing.T) {

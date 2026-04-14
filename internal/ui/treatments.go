@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/better-monitoring/glycoview/internal/model"
+	"github.com/glycoview/glycoview/internal/model"
 )
 
 func totalsFromTreatments(records []model.Record) (float64, float64) {

@@ -4,6 +4,5 @@
 node_modules
 frontend/node_modules
 third_party
-web/dist
 frontend/dist
 *.log

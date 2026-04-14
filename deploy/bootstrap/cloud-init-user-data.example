@@ -11,6 +11,7 @@ write_files:
       POSTGRES_DB=glycoview
       POSTGRES_USER=glycoview
       POSTGRES_PASSWORD=change-me
+      GLYCOVIEW_AGENT_TOKEN=replace-with-a-long-random-secret
       GLYCOVIEW_TAG=latest
       GLYCOVIEW_AGENT_TAG=latest
 

@@ -1,15 +1,17 @@
 # glycoview
 
-`glycoview` is a planned Go + Postgres reimplementation of the Nightscout API with a clinician-oriented UI.
+`glycoview` is a Go + Postgres application with a clinician-oriented UI and Nightscout-compatible API support.
 
 This repository currently contains:
 
-- a concrete rebuild plan in `docs/nightscout-rebuild-plan.md`
-- an upstream test inventory in `docs/upstream-test-inventory.md`
-- a repeatable snapshot script in `scripts/fetch_nightscout_tests.sh`
-- vendored upstream Nightscout test artifacts in `third_party/nightscout/`
+- the GlycoView application and dashboard
+- appliance and deployment scaffolding
+- integration of the external `github.com/glycoview/nightscout-api` library
+- the `frontend` git submodule pointing to `github.com/glycoview/glycoview-ui`
 
-The immediate goal is to preserve Nightscout API behavior first, then replace the legacy UI with a smaller Go-native stack that better fits clinical workflows.
+Nightscout API behavior is provided through the external `nightscout-api` module, while this repository owns the application shell, storage implementations, appliance agent, and clinician workflows.
+
+The appliance agent now expects a shared control-plane secret via `GLYCOVIEW_AGENT_TOKEN`. In the default Swarm layout, that token is used both to authenticate dashboard-to-agent requests and, unless overridden by `GLYCOVIEW_AGENT_STATE_KEY`, to encrypt appliance state that contains DNS challenge credentials.
 
 Deployment and appliance scaffolding now lives in:
 
@@ -24,3 +26,9 @@ Container publishing is GHCR-only. The deployment defaults expect:
 
 - `ghcr.io/glycoview/glycoview`
 - `ghcr.io/glycoview/glycoview-agent`
+
+Clone with submodules:
+
+```bash
+git clone --recurse-submodules https://github.com/glycoview/glycoview.git
+```

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/better-monitoring/glycoview/internal/model"
+	"github.com/glycoview/glycoview/internal/model"
 )
 
 func percentile(values []float64, p float64) float64 {

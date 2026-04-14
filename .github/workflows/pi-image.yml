@@ -1,6 +1,8 @@
 name: pi-image
 
 on:
+  push:
+    tags: ["v*"]
   workflow_dispatch:
     inputs:
       release_tag:
@@ -16,43 +18,77 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
-      - name: Prepare appliance bundle
+      - name: Resolve release tag
+        id: vars
         run: |
-          mkdir -p dist/pi-image/opt/glycoview/stack
-          cp deploy/swarm/stack.yml dist/pi-image/opt/glycoview/stack/stack.yml
-          cp deploy/swarm/.env.example dist/pi-image/opt/glycoview/stack/.env.example
-          mkdir -p dist/pi-image/opt/glycoview/bootstrap
-          cp deploy/bootstrap/bootstrap.sh dist/pi-image/opt/glycoview/bootstrap/bootstrap.sh
-          chmod +x dist/pi-image/opt/glycoview/bootstrap/bootstrap.sh
-          mkdir -p dist/pi-image/etc/systemd/system
-          cp deploy/bootstrap/glycoview-appliance-bootstrap.service dist/pi-image/etc/systemd/system/
-          cp deploy/bootstrap/cloud-init-user-data.example dist/pi-image/
+          if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
+            tag="${GITHUB_REF_NAME}"
+          else
+            tag="${{ inputs.release_tag }}"
+          fi
+          echo "release_tag=${tag}" >>"${GITHUB_OUTPUT}"
+          echo "image_name=glycoview-${tag}-bookworm-arm64" >>"${GITHUB_OUTPUT}"
 
-      - name: Archive appliance assets
+      - name: Prepare pi-gen stage assets
         run: |
-          cd dist/pi-image
-          tar -czf ../glycoview-pi-appliance-${{ inputs.release_tag }}.tar.gz .
+          chmod +x deploy/pi-gen/prepare-image.sh
+          deploy/pi-gen/prepare-image.sh "${{ steps.vars.outputs.release_tag }}"
 
-      - name: Publish artifact
+      - name: Build flashable Raspberry Pi image
+        id: pigen
+        uses: usimd/pi-gen-action@v1
+        with:
+          pi-gen-version: arm64
+          release: bookworm
+          image-name: ${{ steps.vars.outputs.image_name }}
+          stage-list: stage0 stage1 stage2 ./deploy/pi-gen/stage-glycoview
+          hostname: glycoview
+          username: glycoview
+          password: ''
+          disable-first-boot-user-rename: 1
+          enable-ssh: 0
+          enable-cloud-init: 0
+          export-last-stage-only: true
+          increase-runner-disk-size: true
+          compression: xz
+          timezone: Europe/Berlin
+          locale: en_US.UTF-8
+          keyboard-keymap: us
+          keyboard-layout: English (US)
+          verbose-output: true
+
+      - name: Generate checksum
+        run: |
+          sha256sum "${{ steps.pigen.outputs.image-path }}" > "${{ steps.pigen.outputs.image-path }}.sha256"
+
+      - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
-          name: glycoview-pi-appliance-${{ inputs.release_tag }}
-          path: dist/glycoview-pi-appliance-${{ inputs.release_tag }}.tar.gz
+          name: ${{ steps.vars.outputs.image_name }}
+          path: |
+            ${{ steps.pigen.outputs.image-path }}
+            ${{ steps.pigen.outputs.image-path }}.sha256
 
-      - name: Release note
-        run: |
-          cat <<'EOF' > dist/release-notes.md
-          This workflow currently packages the Raspberry Pi appliance payload and first-boot assets.
-
-          The full Pi OS image build should be added on top of this by wiring pi-gen or a maintained pi-gen GitHub Action.
-          EOF
-
-      - name: Upload release asset
-        if: startsWith(inputs.release_tag, 'v')
+      - name: Publish release assets
+        if: startsWith(steps.vars.outputs.release_tag, 'v')
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.release_tag }}
+          tag_name: ${{ steps.vars.outputs.release_tag }}
           files: |
-            dist/glycoview-pi-appliance-${{ inputs.release_tag }}.tar.gz
-          body_path: dist/release-notes.md
+            ${{ steps.pigen.outputs.image-path }}
+            ${{ steps.pigen.outputs.image-path }}.sha256
+          body: |
+            Flash the `.img.xz` file to a Raspberry Pi SD card using Raspberry Pi Imager or `dd`.
+
+            On first boot, the image starts Docker, initializes the local Swarm, and deploys the GlycoView appliance stack.
+
+            Before first boot you can edit `glycoview-firstboot.env` on the boot partition to override:
+
+            - `GLYCOVIEW_DOMAIN`
+            - `POSTGRES_PASSWORD`
+            - `GLYCOVIEW_AGENT_TOKEN`
+            - `GLYCOVIEW_TAG`
+            - `GLYCOVIEW_AGENT_TAG`

@@ -1,0 +1,4 @@
+docker.io
+avahi-daemon
+ca-certificates
+curl

@@ -12,34 +12,20 @@ import (
 	"sync"
 	"time"
 
+	nsauth "github.com/glycoview/nightscout-api/auth"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 )
 
 var (
-	ErrMissingCredentials = errors.New("missing credentials")
-	ErrBadToken           = errors.New("bad token")
-	ErrBadJWT             = errors.New("bad jwt")
+	ErrMissingCredentials = nsauth.ErrMissingCredentials
+	ErrBadToken           = nsauth.ErrBadToken
+	ErrBadJWT             = nsauth.ErrBadJWT
 )
 
-type Role struct {
-	Name        string
-	Permissions []string
-}
-
-type Subject struct {
-	Name        string
-	Roles       []string
-	AccessToken string
-}
-
-type Identity struct {
-	Name        string
-	Roles       []string
-	Permissions []string
-	AccessToken string
-	FromDefault bool
-}
+type Role = nsauth.Role
+type Subject = nsauth.Subject
+type Identity = nsauth.Identity
 
 type Manager struct {
 	mu           sync.RWMutex
@@ -171,6 +157,21 @@ func (m *Manager) Require(permission string, allowDefault bool, next func(http.R
 				writeJSON(w, http.StatusUnauthorized, map[string]any{"status": http.StatusUnauthorized, "message": "Missing or bad access token or JWT"})
 				return
 			}
+			writeJSON(w, http.StatusForbidden, map[string]any{"status": http.StatusForbidden, "message": fmt.Sprintf("Missing permission %s", permission)})
+			return
+		}
+		next(w, r.WithContext(context.WithValue(r.Context(), identityContextKey{}, identity)), identity)
+	}
+}
+
+func (m *Manager) RequireV1Write(permission string, next func(http.ResponseWriter, *http.Request, *Identity)) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		identity, err := m.AuthenticateExplicit(r)
+		if err != nil {
+			writeJSON(w, http.StatusUnauthorized, map[string]any{"status": http.StatusUnauthorized, "message": authErrorMessage(err)})
+			return
+		}
+		if !m.HasPermission(*identity, permission) {
 			writeJSON(w, http.StatusForbidden, map[string]any{"status": http.StatusForbidden, "message": fmt.Sprintf("Missing permission %s", permission)})
 			return
 		}

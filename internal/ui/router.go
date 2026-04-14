@@ -8,15 +8,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/glycoview/nightscout-api/httpx"
 	"github.com/go-chi/chi/v5"
 
-	"github.com/better-monitoring/glycoview/internal/appliance"
-	"github.com/better-monitoring/glycoview/internal/auth"
-	"github.com/better-monitoring/glycoview/internal/config"
-	"github.com/better-monitoring/glycoview/internal/dashboardauth"
-	"github.com/better-monitoring/glycoview/internal/httpx"
-	"github.com/better-monitoring/glycoview/internal/store"
-	webassets "github.com/better-monitoring/glycoview/web"
+	"github.com/glycoview/glycoview/internal/appliance"
+	"github.com/glycoview/glycoview/internal/auth"
+	"github.com/glycoview/glycoview/internal/config"
+	"github.com/glycoview/glycoview/internal/dashboardauth"
+	"github.com/glycoview/glycoview/internal/store"
 )
 
 type Dependencies struct {
@@ -31,7 +30,7 @@ func NewRouter(dep Dependencies) http.Handler {
 		Config: dep.Config,
 		Store:  dep.Store,
 	}
-	agent := newAgentClient(dep.Config.AgentURL)
+	agent := newAgentClient(dep.Config.AgentURL, dep.Config.AgentToken)
 
 	r := chi.NewRouter()
 	r.Route("/app/api", func(r chi.Router) {
@@ -203,6 +202,45 @@ func NewRouter(dep Dependencies) http.Handler {
 			}
 			httpx.WriteJSON(w, http.StatusOK, body)
 		}))
+		r.Get("/settings/dyndns/providers", requireSessionRole(dep.AppAuth, dashboardauth.RoleAdmin, func(w http.ResponseWriter, r *http.Request, _ dashboardauth.UserSummary) {
+			var body struct {
+				Providers []appliance.DynamicDNSProvider `json:"providers"`
+			}
+			if err := agent.get(r.Context(), "/v1/dyndns/providers", &body); err != nil {
+				httpx.WriteJSON(w, http.StatusBadGateway, map[string]any{"status": 502, "message": err.Error()})
+				return
+			}
+			httpx.WriteJSON(w, http.StatusOK, body)
+		}))
+		r.Get("/settings/dyndns/config", requireSessionRole(dep.AppAuth, dashboardauth.RoleAdmin, func(w http.ResponseWriter, r *http.Request, _ dashboardauth.UserSummary) {
+			var body appliance.DynamicDNSConfig
+			if err := agent.get(r.Context(), "/v1/dyndns/config", &body); err != nil {
+				httpx.WriteJSON(w, http.StatusBadGateway, map[string]any{"status": 502, "message": err.Error()})
+				return
+			}
+			httpx.WriteJSON(w, http.StatusOK, body)
+		}))
+		r.Post("/settings/dyndns/configure", requireSessionRole(dep.AppAuth, dashboardauth.RoleAdmin, func(w http.ResponseWriter, r *http.Request, _ dashboardauth.UserSummary) {
+			var payload appliance.DynamicDNSConfig
+			if err := httpx.ReadJSON(r, &payload); err != nil {
+				httpx.WriteJSON(w, http.StatusBadRequest, map[string]any{"status": 400, "message": "Invalid JSON body"})
+				return
+			}
+			var body appliance.ActionResponse
+			if err := agent.post(r.Context(), "/v1/dyndns/configure", payload, &body); err != nil {
+				httpx.WriteJSON(w, http.StatusBadGateway, map[string]any{"status": 502, "message": err.Error()})
+				return
+			}
+			httpx.WriteJSON(w, http.StatusOK, body)
+		}))
+		r.Post("/settings/dyndns/sync", requireSessionRole(dep.AppAuth, dashboardauth.RoleAdmin, func(w http.ResponseWriter, r *http.Request, _ dashboardauth.UserSummary) {
+			var body appliance.ActionResponse
+			if err := agent.post(r.Context(), "/v1/dyndns/sync", map[string]any{}, &body); err != nil {
+				httpx.WriteJSON(w, http.StatusBadGateway, map[string]any{"status": 502, "message": err.Error()})
+				return
+			}
+			httpx.WriteJSON(w, http.StatusOK, body)
+		}))
 		r.Post("/settings/tls/configure", requireSessionRole(dep.AppAuth, dashboardauth.RoleAdmin, func(w http.ResponseWriter, r *http.Request, _ dashboardauth.UserSummary) {
 			var payload appliance.TLSConfig
 			if err := httpx.ReadJSON(r, &payload); err != nil {
@@ -241,7 +279,7 @@ func NewRouter(dep Dependencies) http.Handler {
 		}))
 	})
 
-	r.Mount("/", webassets.NewHandler())
+	r.Mount("/", newAssetsHandler())
 	return r
 }
 

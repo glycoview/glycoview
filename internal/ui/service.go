@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/better-monitoring/glycoview/internal/config"
-	"github.com/better-monitoring/glycoview/internal/store"
+	"github.com/glycoview/glycoview/internal/config"
+	"github.com/glycoview/glycoview/internal/store"
 )
 
 type Service struct {
