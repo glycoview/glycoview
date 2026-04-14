@@ -10,3 +10,12 @@ This repository currently contains:
 - vendored upstream Nightscout test artifacts in `third_party/nightscout/`
 
 The immediate goal is to preserve Nightscout API behavior first, then replace the legacy UI with a smaller Go-native stack that better fits clinical workflows.
+
+Deployment and appliance scaffolding now lives in:
+
+- [docs/appliance-architecture.md](/Users/henryschwerdtner/dev/bscout/docs/appliance-architecture.md)
+- [docs/appliance-implementation-plan.md](/Users/henryschwerdtner/dev/bscout/docs/appliance-implementation-plan.md)
+- [deploy/swarm/stack.yml](/Users/henryschwerdtner/dev/bscout/deploy/swarm/stack.yml)
+- [deploy/bootstrap/bootstrap.sh](/Users/henryschwerdtner/dev/bscout/deploy/bootstrap/bootstrap.sh)
+- [.github/workflows/docker-release.yml](/Users/henryschwerdtner/dev/bscout/.github/workflows/docker-release.yml)
+- [.github/workflows/pi-image.yml](/Users/henryschwerdtner/dev/bscout/.github/workflows/pi-image.yml)

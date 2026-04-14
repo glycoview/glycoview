@@ -1,0 +1,21 @@
+#cloud-config
+hostname: bscout
+timezone: Europe/Berlin
+
+write_files:
+  - path: /opt/bscout/stack/.env
+    permissions: "0640"
+    content: |
+      BSCOUT_DOMAIN=bscout.local
+      LETSENCRYPT_EMAIL=admin@example.com
+      POSTGRES_DB=bscout
+      POSTGRES_USER=bscout
+      POSTGRES_PASSWORD=change-me
+      BSCOUT_TAG=latest
+      BSCOUT_AGENT_TAG=latest
+
+runcmd:
+  - systemctl enable docker
+  - systemctl start docker
+  - systemctl enable bscout-appliance-bootstrap.service
+  - systemctl start bscout-appliance-bootstrap.service

@@ -1,0 +1,13 @@
+[Unit]
+Description=BScout appliance bootstrap
+After=network-online.target docker.service
+Wants=network-online.target docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+EnvironmentFile=-/opt/bscout/stack/.env
+ExecStart=/opt/bscout/bootstrap/bootstrap.sh
+
+[Install]
+WantedBy=multi-user.target

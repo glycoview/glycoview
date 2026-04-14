@@ -1,0 +1,58 @@
+name: pi-image
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Release tag to embed into the appliance image
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare appliance bundle
+        run: |
+          mkdir -p dist/pi-image/opt/bscout/stack
+          cp deploy/swarm/stack.yml dist/pi-image/opt/bscout/stack/stack.yml
+          cp deploy/swarm/.env.example dist/pi-image/opt/bscout/stack/.env.example
+          mkdir -p dist/pi-image/opt/bscout/bootstrap
+          cp deploy/bootstrap/bootstrap.sh dist/pi-image/opt/bscout/bootstrap/bootstrap.sh
+          chmod +x dist/pi-image/opt/bscout/bootstrap/bootstrap.sh
+          mkdir -p dist/pi-image/etc/systemd/system
+          cp deploy/bootstrap/bscout-appliance-bootstrap.service dist/pi-image/etc/systemd/system/
+          cp deploy/bootstrap/cloud-init-user-data.example dist/pi-image/
+
+      - name: Archive appliance assets
+        run: |
+          cd dist/pi-image
+          tar -czf ../bscout-pi-appliance-${{ inputs.release_tag }}.tar.gz .
+
+      - name: Publish artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: bscout-pi-appliance-${{ inputs.release_tag }}
+          path: dist/bscout-pi-appliance-${{ inputs.release_tag }}.tar.gz
+
+      - name: Release note
+        run: |
+          cat <<'EOF' > dist/release-notes.md
+          This workflow currently packages the Raspberry Pi appliance payload and first-boot assets.
+
+          The full Pi OS image build should be added on top of this by wiring pi-gen or a maintained pi-gen GitHub Action.
+          EOF
+
+      - name: Upload release asset
+        if: startsWith(inputs.release_tag, 'v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.release_tag }}
+          files: |
+            dist/bscout-pi-appliance-${{ inputs.release_tag }}.tar.gz
+          body_path: dist/release-notes.md
