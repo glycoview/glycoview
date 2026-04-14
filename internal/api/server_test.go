@@ -1,6 +1,7 @@
 package api_test
 
 import (
+	"bytes"
 	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
@@ -89,7 +90,8 @@ func TestV1TreatmentsCRUDAndSanitize(t *testing.T) {
 	defer h.Close()
 
 	subject := h.Auth.CreateSubject("test-api-create", []string{"apiCreate", "apiRead", "apiDelete"})
-	body := `{"eventType":"Meal Bolus","created_at":"2026-04-10T10:00:00.000+0200","carbs":"30","insulin":"2.0","notes":"<IMG SRC=\"javascript:alert('XSS');\">"}`
+	createdAt := time.Now().Add(-2 * time.Hour).UTC().Format("2006-01-02T15:04:05.000Z")
+	body := `{"eventType":"Meal Bolus","created_at":"` + createdAt + `","carbs":"30","insulin":"2.0","notes":"<IMG SRC=\"javascript:alert('XSS');\">"}`
 	req, err := http.NewRequest(http.MethodPost, h.Server.URL+"/api/v1/treatments", strings.NewReader(body))
 	if err != nil {
 		t.Fatal(err)
@@ -933,4 +935,240 @@ func issueJWT(t *testing.T, h *testutil.Harness, accessToken string) string {
 		t.Fatal(err)
 	}
 	return tokenResponse["token"]
+}
+
+func TestUIShellAndOverviewEndpoint(t *testing.T) {
+	h := testutil.NewHarness("readable")
+	defer h.Close()
+
+	now := time.Now().UTC()
+	if err := h.Store.Seed("entries",
+		map[string]any{"type": "sgv", "sgv": 112, "date": now.Add(-15 * time.Minute).UnixMilli(), "direction": "Flat"},
+		map[string]any{"type": "sgv", "sgv": 118, "date": now.Add(-10 * time.Minute).UnixMilli(), "direction": "FortyFiveUp"},
+		map[string]any{"type": "sgv", "sgv": 124, "date": now.Add(-5 * time.Minute).UnixMilli(), "direction": "SingleUp"},
+	); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.Store.Seed("treatments",
+		map[string]any{"eventType": "Meal Bolus", "created_at": now.Add(-20 * time.Minute).Format("2006-01-02T15:04:05.000Z"), "carbs": 32, "insulin": 3.4},
+	); err != nil {
+		t.Fatal(err)
+	}
+	if err := h.Store.Seed("devicestatus",
+		map[string]any{"device": "dexcom-g7", "created_at": now.Add(-4 * time.Minute).Format("2006-01-02T15:04:05.000Z"), "uploaderBattery": 78},
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := h.Client().Get(h.Server.URL + "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("ui shell status = %d", resp.StatusCode)
+	}
+	contentType := resp.Header.Get("Content-Type")
+	if !strings.Contains(contentType, "text/html") {
+		t.Fatalf("ui shell content-type = %s", contentType)
+	}
+
+	resp, err = h.Client().Get(h.Server.URL + "/app/api/overview")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("ui overview status = %d", resp.StatusCode)
+	}
+	var overview struct {
+		PatientName string `json:"patientName"`
+		Current     struct {
+			Value string `json:"value"`
+		} `json:"current"`
+		Metrics []map[string]any `json:"metrics"`
+		Devices []map[string]any `json:"devices"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&overview); err != nil {
+		t.Fatal(err)
+	}
+	if overview.Current.Value == "" || overview.Current.Value == "No data" {
+		t.Fatalf("ui overview current value = %q", overview.Current.Value)
+	}
+	if len(overview.Metrics) == 0 {
+		t.Fatalf("ui overview metrics missing")
+	}
+	if len(overview.Devices) == 0 {
+		t.Fatalf("ui overview devices missing")
+	}
+}
+
+func TestDashboardAuthSetupLoginAndRoles(t *testing.T) {
+	h := testutil.NewHarness("denied")
+	defer h.Close()
+
+	now := time.Now().UTC()
+	if err := h.Store.Seed("entries", map[string]any{"type": "sgv", "sgv": 126, "date": now.UnixMilli()}); err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := h.Client().Get(h.Server.URL + "/app/api/auth/status")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	var status map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
+		t.Fatal(err)
+	}
+	if status["setupRequired"] != true {
+		t.Fatalf("setupRequired = %v", status["setupRequired"])
+	}
+
+	setupResp := doJSON(t, h, http.MethodPost, "/app/api/auth/setup", `{"username":"admin","password":"password123","displayName":"Clinic Admin"}`, "")
+	adminCookie := sessionCookie(t, setupResp)
+	var setupBody map[string]any
+	if err := json.NewDecoder(setupResp.Body).Decode(&setupBody); err != nil {
+		t.Fatal(err)
+	}
+	_ = setupResp.Body.Close()
+	user := setupBody["user"].(map[string]any)
+	if user["role"] != "admin" {
+		t.Fatalf("setup role = %v", user["role"])
+	}
+	apiSecret, ok := setupBody["apiSecret"].(string)
+	if !ok || apiSecret == "" {
+		t.Fatalf("setup apiSecret = %v", setupBody["apiSecret"])
+	}
+
+	authResp := doJSON(t, h, http.MethodGet, "/app/api/auth/status", "", adminCookie)
+	var authBody map[string]any
+	if err := json.NewDecoder(authResp.Body).Decode(&authBody); err != nil {
+		t.Fatal(err)
+	}
+	_ = authResp.Body.Close()
+	if authBody["authenticated"] != true {
+		t.Fatalf("authenticated = %v", authBody["authenticated"])
+	}
+
+	overviewResp := doJSON(t, h, http.MethodGet, "/app/api/overview", "", adminCookie)
+	if overviewResp.StatusCode != http.StatusOK {
+		t.Fatalf("overview with session = %d", overviewResp.StatusCode)
+	}
+	_ = overviewResp.Body.Close()
+
+	req, err := http.NewRequest(http.MethodGet, h.Server.URL+"/app/api/overview", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("api-secret", apiSecret)
+	secretOverviewResp, err := h.Client().Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if secretOverviewResp.StatusCode != http.StatusOK {
+		t.Fatalf("overview with api secret = %d", secretOverviewResp.StatusCode)
+	}
+	_ = secretOverviewResp.Body.Close()
+
+	secretResp := doJSON(t, h, http.MethodGet, "/app/api/auth/install-secret", "", adminCookie)
+	var secretBody map[string]any
+	if err := json.NewDecoder(secretResp.Body).Decode(&secretBody); err != nil {
+		t.Fatal(err)
+	}
+	_ = secretResp.Body.Close()
+	if secretBody["apiSecret"] != apiSecret {
+		t.Fatalf("install secret = %v", secretBody["apiSecret"])
+	}
+
+	createResp := doJSON(t, h, http.MethodPost, "/app/api/users", `{"username":"doctor","password":"password123","displayName":"Doctor One","role":"doctor"}`, adminCookie)
+	var createBody map[string]any
+	if err := json.NewDecoder(createResp.Body).Decode(&createBody); err != nil {
+		t.Fatal(err)
+	}
+	_ = createResp.Body.Close()
+	doctor := createBody["user"].(map[string]any)
+	doctorID := doctor["id"].(string)
+
+	listResp := doJSON(t, h, http.MethodGet, "/app/api/users", "", adminCookie)
+	var listBody map[string]any
+	if err := json.NewDecoder(listResp.Body).Decode(&listBody); err != nil {
+		t.Fatal(err)
+	}
+	_ = listResp.Body.Close()
+	users := listBody["users"].([]any)
+	if len(users) != 2 {
+		t.Fatalf("users len = %d", len(users))
+	}
+
+	logoutResp := doJSON(t, h, http.MethodPost, "/app/api/auth/logout", `{}`, adminCookie)
+	_ = logoutResp.Body.Close()
+
+	loginResp := doJSON(t, h, http.MethodPost, "/app/api/auth/login", `{"username":"doctor","password":"password123"}`, "")
+	doctorCookie := sessionCookie(t, loginResp)
+	_ = loginResp.Body.Close()
+
+	doctorOverview := doJSON(t, h, http.MethodGet, "/app/api/overview", "", doctorCookie)
+	if doctorOverview.StatusCode != http.StatusOK {
+		t.Fatalf("doctor overview status = %d", doctorOverview.StatusCode)
+	}
+	_ = doctorOverview.Body.Close()
+
+	doctorUsers := doJSON(t, h, http.MethodGet, "/app/api/users", "", doctorCookie)
+	if doctorUsers.StatusCode != http.StatusForbidden {
+		t.Fatalf("doctor users status = %d", doctorUsers.StatusCode)
+	}
+	_ = doctorUsers.Body.Close()
+
+	adminLogin := doJSON(t, h, http.MethodPost, "/app/api/auth/login", `{"username":"admin","password":"password123"}`, "")
+	adminCookie = sessionCookie(t, adminLogin)
+	_ = adminLogin.Body.Close()
+
+	patchResp := doJSON(t, h, http.MethodPatch, "/app/api/users/"+doctorID, `{"active":false}`, adminCookie)
+	if patchResp.StatusCode != http.StatusOK {
+		t.Fatalf("disable doctor status = %d", patchResp.StatusCode)
+	}
+	_ = patchResp.Body.Close()
+
+	doctorOverview = doJSON(t, h, http.MethodGet, "/app/api/overview", "", doctorCookie)
+	if doctorOverview.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("disabled doctor overview status = %d", doctorOverview.StatusCode)
+	}
+	_ = doctorOverview.Body.Close()
+}
+
+func doJSON(t *testing.T, h *testutil.Harness, method, path, body, cookie string) *http.Response {
+	t.Helper()
+	var reader *bytes.Reader
+	if body == "" {
+		reader = bytes.NewReader(nil)
+	} else {
+		reader = bytes.NewReader([]byte(body))
+	}
+	req, err := http.NewRequest(method, h.Server.URL+path, reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if body != "" {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	if cookie != "" {
+		req.Header.Set("Cookie", cookie)
+	}
+	resp, err := h.Client().Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return resp
+}
+
+func sessionCookie(t *testing.T, resp *http.Response) string {
+	t.Helper()
+	for _, cookie := range resp.Cookies() {
+		if cookie.Name == "bscout_session" {
+			return cookie.Name + "=" + cookie.Value
+		}
+	}
+	t.Fatalf("missing session cookie")
+	return ""
 }

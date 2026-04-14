@@ -7,6 +7,7 @@ import (
 	"github.com/better-monitoring/bscout/internal/api"
 	"github.com/better-monitoring/bscout/internal/auth"
 	"github.com/better-monitoring/bscout/internal/config"
+	"github.com/better-monitoring/bscout/internal/dashboardauth"
 	"github.com/better-monitoring/bscout/internal/store/memory"
 )
 
@@ -14,6 +15,7 @@ type Harness struct {
 	Config *config.Config
 	Store  *memory.Store
 	Auth   *auth.Manager
+	AppAuth *dashboardauth.Service
 	Server *httptest.Server
 }
 
@@ -27,11 +29,13 @@ func NewHarness(defaultRoles ...string) *Harness {
 	}
 	authManager := auth.New(cfg.APISecret, cfg.DefaultRoles, cfg.JWTSecret)
 	store := memory.New()
-	server := httptest.NewServer(api.New(cfg, store, authManager))
+	appAuth := dashboardauth.NewService(dashboardauth.NewMemoryStore())
+	server := httptest.NewServer(api.New(cfg, store, authManager, appAuth))
 	return &Harness{
 		Config: &cfg,
 		Store:  store,
 		Auth:   authManager,
+		AppAuth: appAuth,
 		Server: server,
 	}
 }

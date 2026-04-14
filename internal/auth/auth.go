@@ -101,6 +101,24 @@ func (m *Manager) CreateSubject(name string, roles []string) Subject {
 	return subject
 }
 
+func (m *Manager) UpdateAPISecret(apiSecret string) {
+	apiSecret = strings.TrimSpace(apiSecret)
+	if apiSecret == "" {
+		return
+	}
+	sum := sha1.Sum([]byte(apiSecret))
+
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	reuseJWTSecret := string(m.jwtSecret) == m.apiSecret
+	m.apiSecret = apiSecret
+	m.apiSecretSHA = hex.EncodeToString(sum[:])
+	if reuseJWTSecret {
+		m.jwtSecret = []byte(apiSecret)
+	}
+}
+
 func (m *Manager) IssueJWT(accessToken string) (string, error) {
 	m.mu.RLock()
 	subject, ok := m.subjects[accessToken]

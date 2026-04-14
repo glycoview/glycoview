@@ -137,13 +137,14 @@ describe('Nightscout Compatibility', { concurrency: false }, () => {
   });
 
   test('treatments contract', async () => {
+    const recentCreatedAt = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
     let res = await request(server, '/api/v1/treatments', {
       method: 'POST',
       apiSecret: true,
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         eventType: 'Meal Bolus',
-        created_at: '2026-04-10T10:00:00.000+0200',
+        created_at: recentCreatedAt,
         carbs: '30',
         insulin: '2.00',
         notes: '<IMG SRC="javascript:alert(\'XSS\');">'
