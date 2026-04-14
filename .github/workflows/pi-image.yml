@@ -30,6 +30,12 @@ jobs:
           echo "release_tag=${tag}" >>"${GITHUB_OUTPUT}"
           echo "image_name=glycoview-${tag}-bookworm-arm64" >>"${GITHUB_OUTPUT}"
 
+      - name: Generate appliance OS password
+        id: secrets
+        run: |
+          password="$(openssl rand -base64 24 | tr -d '\n' | tr '/+' 'AZ')"
+          echo "os_password=${password}" >>"${GITHUB_OUTPUT}"
+
       - name: Prepare pi-gen stage assets
         run: |
           chmod +x deploy/pi-gen/prepare-image.sh
@@ -45,7 +51,7 @@ jobs:
           stage-list: stage0 stage1 stage2 ./deploy/pi-gen/stage-glycoview
           hostname: glycoview
           username: glycoview
-          password: ''
+          password: ${{ steps.secrets.outputs.os_password }}
           disable-first-boot-user-rename: 1
           enable-ssh: 0
           enable-cloud-init: 0
