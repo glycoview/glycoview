@@ -8,13 +8,13 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/better-monitoring/bscout/internal/api"
-	"github.com/better-monitoring/bscout/internal/auth"
-	"github.com/better-monitoring/bscout/internal/config"
-	"github.com/better-monitoring/bscout/internal/dashboardauth"
-	"github.com/better-monitoring/bscout/internal/store"
-	"github.com/better-monitoring/bscout/internal/store/memory"
-	postgresstore "github.com/better-monitoring/bscout/internal/store/postgres"
+	"github.com/better-monitoring/glycoview/internal/api"
+	"github.com/better-monitoring/glycoview/internal/auth"
+	"github.com/better-monitoring/glycoview/internal/config"
+	"github.com/better-monitoring/glycoview/internal/dashboardauth"
+	"github.com/better-monitoring/glycoview/internal/store"
+	"github.com/better-monitoring/glycoview/internal/store/memory"
+	postgresstore "github.com/better-monitoring/glycoview/internal/store/postgres"
 )
 
 func main() {

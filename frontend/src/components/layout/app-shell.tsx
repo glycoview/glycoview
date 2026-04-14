@@ -1,4 +1,4 @@
-import { Activity, ChartSpline, HeartPulse, LogOut, Settings2, Shield, UserRound } from "lucide-react"
+import { Activity, ChartSpline, HeartPulse, LogOut, MonitorCog, Settings, Shield, UserRound } from "lucide-react"
 import { useMemo } from "react"
 import { NavLink, Outlet, useLocation } from "react-router-dom"
 
@@ -32,23 +32,27 @@ const baseNavItems = [
   { to: "/daily", label: "Daily", icon: ChartSpline },
   { to: "/trends", label: "Trends", icon: HeartPulse },
   { to: "/profile", label: "Profile", icon: UserRound },
-  { to: "/devices", label: "Devices", icon: Settings2 },
+  { to: "/devices", label: "Devices", icon: MonitorCog },
 ]
 
 const pageMeta: Record<string, string> = {
   "/": "Overview",
   "/daily": "Daily",
 	"/trends": "Trends",
-	"/profile": "Profile",
+  "/profile": "Profile",
 	"/devices": "Devices",
   "/users": "Users",
+  "/settings": "Settings",
 }
 
 export function AppShell({ user, onLogout }: AppShellProps) {
   const location = useLocation()
   const title = useMemo(() => pageMeta[location.pathname] ?? pageMeta["/"], [location.pathname])
   const navItems = useMemo(
-    () => (user.role === "admin" ? [...baseNavItems, { to: "/users", label: "Users", icon: Shield }] : baseNavItems),
+    () =>
+      user.role === "admin"
+        ? [...baseNavItems, { to: "/users", label: "Users", icon: Shield }, { to: "/settings", label: "Settings", icon: Settings }]
+        : baseNavItems,
     [user.role],
   )
   const userInitials = initials(user.displayName || user.username)
@@ -65,7 +69,7 @@ export function AppShell({ user, onLogout }: AppShellProps) {
               B
             </div>
             <div className="min-w-0 group-data-[collapsible=icon]:hidden">
-              <div className="truncate text-base font-semibold tracking-tight">BScout</div>
+              <div className="truncate text-base font-semibold tracking-tight">GlycoView</div>
               <div className="truncate text-xs text-muted-foreground">Clinical dashboard</div>
             </div>
           </NavLink>

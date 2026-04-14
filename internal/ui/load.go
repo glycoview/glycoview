@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/better-monitoring/bscout/internal/model"
-	"github.com/better-monitoring/bscout/internal/store"
+	"github.com/better-monitoring/glycoview/internal/model"
+	"github.com/better-monitoring/glycoview/internal/store"
 )
 
 func (s Service) loadEntries(ctx context.Context, start, end time.Time) ([]model.Record, error) {

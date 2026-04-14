@@ -10,12 +10,12 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/better-monitoring/bscout/internal/auth"
-	"github.com/better-monitoring/bscout/internal/config"
-	"github.com/better-monitoring/bscout/internal/httpx"
-	"github.com/better-monitoring/bscout/internal/model"
-	"github.com/better-monitoring/bscout/internal/query"
-	"github.com/better-monitoring/bscout/internal/store"
+	"github.com/better-monitoring/glycoview/internal/auth"
+	"github.com/better-monitoring/glycoview/internal/config"
+	"github.com/better-monitoring/glycoview/internal/httpx"
+	"github.com/better-monitoring/glycoview/internal/model"
+	"github.com/better-monitoring/glycoview/internal/query"
+	"github.com/better-monitoring/glycoview/internal/store"
 )
 
 type Dependencies struct {

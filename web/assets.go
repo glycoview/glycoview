@@ -18,7 +18,7 @@ func NewHandler() http.Handler {
 	distDir := filepath.Join("web", "dist")
 	index, err := os.ReadFile(filepath.Join(distDir, "index.html"))
 	if err != nil {
-		index = []byte(`<!doctype html><html><head><meta charset="utf-8"><title>BScout</title></head><body><div id="root"></div></body></html>`)
+		index = []byte(`<!doctype html><html><head><meta charset="utf-8"><title>GlycoView</title></head><body><div id="root"></div></body></html>`)
 	}
 	return Handler{
 		assets:   http.FileServer(http.Dir(distDir)),

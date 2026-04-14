@@ -10,8 +10,8 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
-	"github.com/better-monitoring/bscout/internal/model"
-	"github.com/better-monitoring/bscout/internal/store"
+	"github.com/better-monitoring/glycoview/internal/model"
+	"github.com/better-monitoring/glycoview/internal/store"
 )
 
 const schemaSQL = `

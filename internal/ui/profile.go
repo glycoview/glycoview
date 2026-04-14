@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/better-monitoring/bscout/internal/model"
+	"github.com/better-monitoring/glycoview/internal/model"
 )
 
 func patientName(profile model.Record) string {
@@ -20,7 +20,7 @@ func patientName(profile model.Record) string {
 	if profile.Identifier() != "" {
 		return strings.ToUpper(profile.Identifier())
 	}
-	return "BScout Patient"
+	return "GlycoView Patient"
 }
 
 func buildBasalProfile(profile model.Record, day time.Time) []EventPoint {

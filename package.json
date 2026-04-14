@@ -1,9 +1,9 @@
 {
-  "name": "bscout",
+  "name": "glycoview",
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "go run ./cmd/bscout",
+    "start": "go run ./cmd/glycoview",
     "build:ui": "npm --prefix frontend run build",
     "test:jscompat": "node --test --test-concurrency=1 jscompat/*.test.js"
   }

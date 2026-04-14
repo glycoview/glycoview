@@ -15,7 +15,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-const SessionCookieName = "bscout_session"
+const SessionCookieName = "glycoview_session"
 const SettingInstallAPISecret = "install_api_secret"
 
 type UserSummary struct {

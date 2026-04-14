@@ -30,7 +30,7 @@ This plan is anchored to the upstream Nightscout snapshot at commit `9cd304f78a5
 
 ## Suggested Backend Shape
 
-- `cmd/bscout`: service entrypoint
+- `cmd/glycoview`: service entrypoint
 - `internal/platform/http`: router, middleware, auth, content negotiation
 - `internal/platform/store`: Postgres access via `pgx`
 - `internal/nightscout/v1`: legacy `/api/v1` compatibility layer

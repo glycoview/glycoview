@@ -12,12 +12,12 @@ export class GoServer {
     this.port = port;
     this.baseUrl = `http://127.0.0.1:${port}`;
     this.process = null;
-    this.binaryPath = path.join(process.cwd(), '.tmp', `bscout-jscompat-${port}`);
+    this.binaryPath = path.join(process.cwd(), '.tmp', `glycoview-jscompat-${port}`);
   }
 
   async start() {
     await mkdir(path.dirname(this.binaryPath), { recursive: true });
-    const build = spawn('go', ['build', '-o', this.binaryPath, './cmd/bscout'], {
+    const build = spawn('go', ['build', '-o', this.binaryPath, './cmd/glycoview'], {
       cwd: process.cwd(),
       stdio: ['ignore', 'pipe', 'pipe']
     });

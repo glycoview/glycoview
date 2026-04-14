@@ -1,6 +1,6 @@
-# BScout Appliance Architecture
+# GlycoView Appliance Architecture
 
-This document defines the target self-hosted Raspberry Pi appliance for `bscout`.
+This document defines the target self-hosted Raspberry Pi appliance for `glycoview`.
 
 ## Goals
 
@@ -21,14 +21,14 @@ Services:
   - Public edge on `:80` and `:443`
   - ACME certificate management
   - HTTP-01 and DNS-01 support
-- `bscout`
+- `glycoview`
   - Main application
   - 2 replicas for start-first rolling updates
   - No public port exposure
 - `postgres`
   - Single replica
   - Persistent local volume
-- `bscout-agent`
+- `glycoview-agent`
   - Local management API
   - Docker socket access
   - Certificate provider config writes
@@ -48,16 +48,16 @@ Those properties matter for dashboard-triggered updates without SSH.
 
 ## Network Layout
 
-- `edge` overlay network: `traefik`, `bscout`
-- `control` overlay network: `bscout`, `bscout-agent`, `postgres`
-- `bscout-agent` is not exposed publicly
+- `edge` overlay network: `traefik`, `glycoview`
+- `control` overlay network: `glycoview`, `glycoview-agent`, `postgres`
+- `glycoview-agent` is not exposed publicly
 
 ## Persistent State
 
 - `postgres_data`
 - `traefik_acme`
-- `bscout_backups`
-- `bscout_agent_state`
+- `glycoview_backups`
+- `glycoview_agent_state`
 
 ## TLS Strategy
 
@@ -81,11 +81,11 @@ Provider support should be implemented through Traefik's ACME DNS support, which
 - Gandi
 - Google Cloud DNS
 
-Credentials are written by `bscout-agent` into Docker secrets or encrypted local config, never stored in plaintext in Postgres.
+Credentials are written by `glycoview-agent` into Docker secrets or encrypted local config, never stored in plaintext in Postgres.
 
 ## Update Model
 
-The dashboard talks to `bscout-agent`.
+The dashboard talks to `glycoview-agent`.
 
 Agent responsibilities:
 
@@ -108,7 +108,7 @@ The Raspberry Pi image boots into a preinstalled bootstrap service that:
 3. initializes Swarm if needed
 4. writes stack env/config
 5. deploys the stack
-6. exposes setup UI at local IP or `bscout.local`
+6. exposes setup UI at local IP or `glycoview.local`
 
 ## Dashboard Setup Flow
 

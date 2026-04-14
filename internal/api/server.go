@@ -5,28 +5,28 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/better-monitoring/bscout/internal/auth"
-	"github.com/better-monitoring/bscout/internal/config"
-	"github.com/better-monitoring/bscout/internal/dashboardauth"
-	"github.com/better-monitoring/bscout/internal/httpx"
-	v1 "github.com/better-monitoring/bscout/internal/nightscout/v1"
-	v3 "github.com/better-monitoring/bscout/internal/nightscout/v3"
-	"github.com/better-monitoring/bscout/internal/store"
-	"github.com/better-monitoring/bscout/internal/ui"
+	"github.com/better-monitoring/glycoview/internal/auth"
+	"github.com/better-monitoring/glycoview/internal/config"
+	"github.com/better-monitoring/glycoview/internal/dashboardauth"
+	"github.com/better-monitoring/glycoview/internal/httpx"
+	v1 "github.com/better-monitoring/glycoview/internal/nightscout/v1"
+	v3 "github.com/better-monitoring/glycoview/internal/nightscout/v3"
+	"github.com/better-monitoring/glycoview/internal/store"
+	"github.com/better-monitoring/glycoview/internal/ui"
 )
 
 type Server struct {
-	Config config.Config
-	Store  store.Store
-	Auth   *auth.Manager
+	Config  config.Config
+	Store   store.Store
+	Auth    *auth.Manager
 	AppAuth *dashboardauth.Service
 }
 
 func New(cfg config.Config, dataStore store.Store, authManager *auth.Manager, appAuth *dashboardauth.Service) http.Handler {
 	server := &Server{
-		Config: cfg,
-		Store:  dataStore,
-		Auth:   authManager,
+		Config:  cfg,
+		Store:   dataStore,
+		Auth:    authManager,
 		AppAuth: appAuth,
 	}
 	return server.routes()
@@ -61,9 +61,9 @@ func (s *Server) routes() http.Handler {
 	})
 
 	r.Mount("/", ui.NewRouter(ui.Dependencies{
-		Config: s.Config,
-		Store:  s.Store,
-		Auth:   s.Auth,
+		Config:  s.Config,
+		Store:   s.Store,
+		Auth:    s.Auth,
 		AppAuth: s.AppAuth,
 	}))
 

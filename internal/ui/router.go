@@ -10,12 +10,13 @@ import (
 
 	"github.com/go-chi/chi/v5"
 
-	"github.com/better-monitoring/bscout/internal/auth"
-	"github.com/better-monitoring/bscout/internal/config"
-	"github.com/better-monitoring/bscout/internal/dashboardauth"
-	"github.com/better-monitoring/bscout/internal/httpx"
-	"github.com/better-monitoring/bscout/internal/store"
-	webassets "github.com/better-monitoring/bscout/web"
+	"github.com/better-monitoring/glycoview/internal/appliance"
+	"github.com/better-monitoring/glycoview/internal/auth"
+	"github.com/better-monitoring/glycoview/internal/config"
+	"github.com/better-monitoring/glycoview/internal/dashboardauth"
+	"github.com/better-monitoring/glycoview/internal/httpx"
+	"github.com/better-monitoring/glycoview/internal/store"
+	webassets "github.com/better-monitoring/glycoview/web"
 )
 
 type Dependencies struct {
@@ -30,6 +31,7 @@ func NewRouter(dep Dependencies) http.Handler {
 		Config: dep.Config,
 		Store:  dep.Store,
 	}
+	agent := newAgentClient(dep.Config.AgentURL)
 
 	r := chi.NewRouter()
 	r.Route("/app/api", func(r chi.Router) {
@@ -145,6 +147,74 @@ func NewRouter(dep Dependencies) http.Handler {
 				return
 			}
 			httpx.WriteJSON(w, http.StatusOK, map[string]any{"user": user})
+		}))
+		r.Get("/settings/status", requireSessionRole(dep.AppAuth, dashboardauth.RoleAdmin, func(w http.ResponseWriter, r *http.Request, _ dashboardauth.UserSummary) {
+			var body appliance.StatusResponse
+			if err := agent.get(r.Context(), "/v1/system/status", &body); err != nil {
+				httpx.WriteJSON(w, http.StatusBadGateway, map[string]any{"status": 502, "message": err.Error()})
+				return
+			}
+			httpx.WriteJSON(w, http.StatusOK, body)
+		}))
+		r.Get("/settings/updates/check", requireSessionRole(dep.AppAuth, dashboardauth.RoleAdmin, func(w http.ResponseWriter, r *http.Request, _ dashboardauth.UserSummary) {
+			var body appliance.UpdateCheckResponse
+			if err := agent.get(r.Context(), "/v1/update/check", &body); err != nil {
+				httpx.WriteJSON(w, http.StatusBadGateway, map[string]any{"status": 502, "message": err.Error()})
+				return
+			}
+			httpx.WriteJSON(w, http.StatusOK, body)
+		}))
+		r.Post("/settings/updates/apply", requireSessionRole(dep.AppAuth, dashboardauth.RoleAdmin, func(w http.ResponseWriter, r *http.Request, _ dashboardauth.UserSummary) {
+			var payload appliance.ApplyUpdateRequest
+			if err := httpx.ReadJSON(r, &payload); err != nil {
+				httpx.WriteJSON(w, http.StatusBadRequest, map[string]any{"status": 400, "message": "Invalid JSON body"})
+				return
+			}
+			var body appliance.ActionResponse
+			if err := agent.post(r.Context(), "/v1/update/apply", payload, &body); err != nil {
+				httpx.WriteJSON(w, http.StatusBadGateway, map[string]any{"status": 502, "message": err.Error()})
+				return
+			}
+			httpx.WriteJSON(w, http.StatusOK, body)
+		}))
+		r.Post("/settings/updates/rollback", requireSessionRole(dep.AppAuth, dashboardauth.RoleAdmin, func(w http.ResponseWriter, r *http.Request, _ dashboardauth.UserSummary) {
+			var body appliance.ActionResponse
+			if err := agent.post(r.Context(), "/v1/update/rollback", map[string]any{}, &body); err != nil {
+				httpx.WriteJSON(w, http.StatusBadGateway, map[string]any{"status": 502, "message": err.Error()})
+				return
+			}
+			httpx.WriteJSON(w, http.StatusOK, body)
+		}))
+		r.Get("/settings/tls/providers", requireSessionRole(dep.AppAuth, dashboardauth.RoleAdmin, func(w http.ResponseWriter, r *http.Request, _ dashboardauth.UserSummary) {
+			var body struct {
+				Providers []appliance.TLSProvider `json:"providers"`
+			}
+			if err := agent.get(r.Context(), "/v1/tls/providers", &body); err != nil {
+				httpx.WriteJSON(w, http.StatusBadGateway, map[string]any{"status": 502, "message": err.Error()})
+				return
+			}
+			httpx.WriteJSON(w, http.StatusOK, body)
+		}))
+		r.Get("/settings/tls/config", requireSessionRole(dep.AppAuth, dashboardauth.RoleAdmin, func(w http.ResponseWriter, r *http.Request, _ dashboardauth.UserSummary) {
+			var body appliance.TLSConfig
+			if err := agent.get(r.Context(), "/v1/tls/config", &body); err != nil {
+				httpx.WriteJSON(w, http.StatusBadGateway, map[string]any{"status": 502, "message": err.Error()})
+				return
+			}
+			httpx.WriteJSON(w, http.StatusOK, body)
+		}))
+		r.Post("/settings/tls/configure", requireSessionRole(dep.AppAuth, dashboardauth.RoleAdmin, func(w http.ResponseWriter, r *http.Request, _ dashboardauth.UserSummary) {
+			var payload appliance.TLSConfig
+			if err := httpx.ReadJSON(r, &payload); err != nil {
+				httpx.WriteJSON(w, http.StatusBadRequest, map[string]any{"status": 400, "message": "Invalid JSON body"})
+				return
+			}
+			var body appliance.ActionResponse
+			if err := agent.post(r.Context(), "/v1/tls/configure", payload, &body); err != nil {
+				httpx.WriteJSON(w, http.StatusBadGateway, map[string]any{"status": 502, "message": err.Error()})
+				return
+			}
+			httpx.WriteJSON(w, http.StatusOK, body)
 		}))
 		r.Get("/overview", authApp(dep.Auth, dep.AppAuth, func(w http.ResponseWriter, r *http.Request) {
 			days := queryInt(r, "days", 14)

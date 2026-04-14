@@ -12,6 +12,7 @@ import { DevicesPage } from "@/pages/devices-page"
 import { LoginPage } from "@/pages/login-page"
 import { SetupPage } from "@/pages/setup-page"
 import { UsersPage } from "@/pages/users-page"
+import { SettingsPage } from "@/pages/settings-page"
 
 function App() {
   const [token] = useState(() => readStoredToken())
@@ -65,6 +66,7 @@ function App() {
         <Route path="/profile" element={<ProfilePage token={token} />} />
         <Route path="/devices" element={<DevicesPage token={token} />} />
         {authStatus.user.role === "admin" ? <Route path="/users" element={<UsersPage />} /> : null}
+        {authStatus.user.role === "admin" ? <Route path="/settings" element={<SettingsPage />} /> : null}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>

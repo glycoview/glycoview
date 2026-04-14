@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/better-monitoring/bscout/internal/auth"
-	"github.com/better-monitoring/bscout/internal/store"
+	"github.com/better-monitoring/glycoview/internal/auth"
+	"github.com/better-monitoring/glycoview/internal/store"
 )
 
 func WriteJSON(w http.ResponseWriter, status int, body any) {

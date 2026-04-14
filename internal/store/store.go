@@ -13,7 +13,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/better-monitoring/bscout/internal/model"
+	"github.com/better-monitoring/glycoview/internal/model"
 )
 
 var (

@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/better-monitoring/bscout/internal/config"
-	"github.com/better-monitoring/bscout/internal/store"
+	"github.com/better-monitoring/glycoview/internal/config"
+	"github.com/better-monitoring/glycoview/internal/store"
 )
 
 type Service struct {
@@ -146,7 +146,7 @@ func (s Service) Profile(ctx context.Context) (ProfileResponse, error) {
 	if err != nil {
 		return ProfileResponse{
 			GeneratedAt: time.Now().UnixMilli(),
-			PatientName: "BScout Patient",
+			PatientName: "GlycoView Patient",
 			Headline:    "No therapy profile is available yet",
 		}, nil
 	}

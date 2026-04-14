@@ -1,8 +1,16 @@
 import { useEffect, useState } from "react"
 
-import type { AppUser, AuthStatus } from "@/types"
+import type {
+  AppUser,
+  ApplianceActionResponse,
+  ApplianceStatus,
+  ApplianceTLSConfig,
+  AuthStatus,
+  TLSProvider,
+  UpdateCheckResponse,
+} from "@/types"
 
-const TOKEN_KEY = "bscout.api-token"
+const TOKEN_KEY = "glycoview.api-token"
 
 export type ApiError = {
   status: number
@@ -121,6 +129,34 @@ export function createUser(input: { username: string; password: string; displayN
 
 export function updateUser(id: string, input: { displayName?: string; password?: string; role?: string; active?: boolean }) {
   return patchJson<{ user: AppUser }>(`/app/api/users/${id}`, input)
+}
+
+export function fetchSettingsStatus() {
+  return fetchJson<ApplianceStatus>("/app/api/settings/status", "")
+}
+
+export function fetchUpdateCheck() {
+  return fetchJson<UpdateCheckResponse>("/app/api/settings/updates/check", "")
+}
+
+export function applyUpdate(input: { tag: string; includeAgent?: boolean }) {
+  return postJson<ApplianceActionResponse>("/app/api/settings/updates/apply", input)
+}
+
+export function rollbackUpdate() {
+  return postJson<ApplianceActionResponse>("/app/api/settings/updates/rollback", {})
+}
+
+export function fetchTLSProviders() {
+  return fetchJson<{ providers: TLSProvider[] }>("/app/api/settings/tls/providers", "")
+}
+
+export function fetchTLSConfig() {
+  return fetchJson<ApplianceTLSConfig>("/app/api/settings/tls/config", "")
+}
+
+export function configureTLS(input: ApplianceTLSConfig) {
+  return postJson<ApplianceActionResponse>("/app/api/settings/tls/configure", input)
 }
 
 export function useApiResource<T>(path: string, token: string) {

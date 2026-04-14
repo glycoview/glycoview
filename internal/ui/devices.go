@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/better-monitoring/bscout/internal/model"
+	"github.com/better-monitoring/glycoview/internal/model"
 )
 
 func latestStatusActivity(statuses []model.Record, limit int) []ActivityItem {

@@ -1,21 +1,21 @@
 #cloud-config
-hostname: bscout
+hostname: glycoview
 timezone: Europe/Berlin
 
 write_files:
-  - path: /opt/bscout/stack/.env
+  - path: /opt/glycoview/stack/.env
     permissions: "0640"
     content: |
-      BSCOUT_DOMAIN=bscout.local
+      GLYCOVIEW_DOMAIN=glycoview.local
       LETSENCRYPT_EMAIL=admin@example.com
-      POSTGRES_DB=bscout
-      POSTGRES_USER=bscout
+      POSTGRES_DB=glycoview
+      POSTGRES_USER=glycoview
       POSTGRES_PASSWORD=change-me
-      BSCOUT_TAG=latest
-      BSCOUT_AGENT_TAG=latest
+      GLYCOVIEW_TAG=latest
+      GLYCOVIEW_AGENT_TAG=latest
 
 runcmd:
   - systemctl enable docker
   - systemctl start docker
-  - systemctl enable bscout-appliance-bootstrap.service
-  - systemctl start bscout-appliance-bootstrap.service
+  - systemctl enable glycoview-appliance-bootstrap.service
+  - systemctl start glycoview-appliance-bootstrap.service

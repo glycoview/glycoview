@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/better-monitoring/bscout/internal/model"
-	"github.com/better-monitoring/bscout/internal/store"
+	"github.com/better-monitoring/glycoview/internal/model"
+	"github.com/better-monitoring/glycoview/internal/store"
 )
 
 var bracePattern = regexp.MustCompile(`\{([^{}]+)\}`)

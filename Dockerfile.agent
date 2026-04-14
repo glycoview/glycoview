@@ -9,13 +9,13 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH:-amd64} go build -trimpath -ldflags="-s -w" -o /out/bscout-agent ./cmd/bscout-agent
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH:-amd64} go build -trimpath -ldflags="-s -w" -o /out/glycoview-agent ./cmd/glycoview-agent
 
-FROM gcr.io/distroless/static-debian12
+FROM docker:28-cli
 WORKDIR /app
 
-COPY --from=build /out/bscout-agent /app/bscout-agent
+COPY --from=build /out/glycoview-agent /app/glycoview-agent
 
 EXPOSE 8090
 
-ENTRYPOINT ["/app/bscout-agent"]
+ENTRYPOINT ["/app/glycoview-agent"]

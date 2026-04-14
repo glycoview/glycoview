@@ -6,13 +6,15 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	storepkg "github.com/better-monitoring/bscout/internal/store"
-	"github.com/better-monitoring/bscout/internal/testutil"
+	"github.com/better-monitoring/glycoview/internal/config"
+	storepkg "github.com/better-monitoring/glycoview/internal/store"
+	"github.com/better-monitoring/glycoview/internal/testutil"
 )
 
 func TestV1StatusAndEntries(t *testing.T) {
@@ -1137,6 +1139,132 @@ func TestDashboardAuthSetupLoginAndRoles(t *testing.T) {
 	_ = doctorOverview.Body.Close()
 }
 
+func TestDashboardSettingsProxyAndRoles(t *testing.T) {
+	var configuredTLS map[string]any
+	var appliedUpdate map[string]any
+
+	agent := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/system/status":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"service":           "glycoview-agent",
+				"dockerManaged":     true,
+				"stackName":         "glycoview",
+				"stackFile":         "/opt/glycoview/stack/stack.yml",
+				"stackEnvFile":      "/opt/glycoview/stack/.env",
+				"currentTag":        "v1.2.3",
+				"currentImage":      "ghcr.io/glycoview/glycoview:v1.2.3",
+				"currentAgentTag":   "v1.2.3",
+				"currentAgentImage": "ghcr.io/glycoview/glycoview-agent:v1.2.3",
+				"tls": map[string]any{
+					"domain":        "glycoview.example.com",
+					"email":         "admin@example.com",
+					"challengeType": "http-01",
+				},
+			})
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/update/check":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"currentTag":      "v1.2.3",
+				"latestTag":       "v1.2.4",
+				"updateAvailable": true,
+				"releaseUrl":      "https://example.com/release",
+				"source":          "github-releases",
+			})
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/update/apply":
+			if err := json.NewDecoder(r.Body).Decode(&appliedUpdate); err != nil {
+				t.Fatalf("decode apply update: %v", err)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"status": "ok", "message": "Update applied", "currentTag": appliedUpdate["tag"]})
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/update/rollback":
+			_ = json.NewEncoder(w).Encode(map[string]any{"status": "ok", "message": "Rollback applied", "currentTag": "v1.2.2"})
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/tls/providers":
+			_ = json.NewEncoder(w).Encode(map[string]any{"providers": []map[string]any{
+				{"id": "cloudflare", "label": "Cloudflare", "fields": []map[string]any{{"key": "CF_DNS_API_TOKEN", "label": "API token", "secret": true}}},
+			}})
+		case r.Method == http.MethodGet && r.URL.Path == "/v1/tls/config":
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"domain":        "glycoview.example.com",
+				"email":         "admin@example.com",
+				"challengeType": "dns-01",
+				"provider":      "cloudflare",
+				"env":           map[string]any{"CF_DNS_API_TOKEN": "secret-token"},
+			})
+		case r.Method == http.MethodPost && r.URL.Path == "/v1/tls/configure":
+			if err := json.NewDecoder(r.Body).Decode(&configuredTLS); err != nil {
+				t.Fatalf("decode configure tls: %v", err)
+			}
+			_ = json.NewEncoder(w).Encode(map[string]any{"status": "ok", "message": "TLS configuration applied"})
+		default:
+			http.Error(w, "not found", http.StatusNotFound)
+		}
+	}))
+	defer agent.Close()
+
+	cfg := config.Config{
+		APISecret:    "this is my long pass phrase",
+		JWTSecret:    "this is my long pass phrase",
+		Enable:       []string{"careportal", "rawbg", "api"},
+		DefaultRoles: []string{"denied"},
+		API3MaxLimit: 1000,
+		AgentURL:     agent.URL,
+	}
+	h := testutil.NewHarnessWithConfig(cfg)
+	defer h.Close()
+
+	setupResp := doJSON(t, h, http.MethodPost, "/app/api/auth/setup", `{"username":"admin","password":"password123","displayName":"Clinic Admin"}`, "")
+	adminCookie := sessionCookie(t, setupResp)
+	_ = setupResp.Body.Close()
+
+	createResp := doJSON(t, h, http.MethodPost, "/app/api/users", `{"username":"doctor","password":"password123","displayName":"Doctor One","role":"doctor"}`, adminCookie)
+	_ = createResp.Body.Close()
+	logoutResp := doJSON(t, h, http.MethodPost, "/app/api/auth/logout", `{}`, adminCookie)
+	_ = logoutResp.Body.Close()
+	loginResp := doJSON(t, h, http.MethodPost, "/app/api/auth/login", `{"username":"doctor","password":"password123"}`, "")
+	doctorCookie := sessionCookie(t, loginResp)
+	_ = loginResp.Body.Close()
+	adminLogin := doJSON(t, h, http.MethodPost, "/app/api/auth/login", `{"username":"admin","password":"password123"}`, "")
+	adminCookie = sessionCookie(t, adminLogin)
+	_ = adminLogin.Body.Close()
+
+	statusResp := doJSON(t, h, http.MethodGet, "/app/api/settings/status", "", adminCookie)
+	if statusResp.StatusCode != http.StatusOK {
+		t.Fatalf("settings status = %d", statusResp.StatusCode)
+	}
+	var statusBody map[string]any
+	if err := json.NewDecoder(statusResp.Body).Decode(&statusBody); err != nil {
+		t.Fatal(err)
+	}
+	_ = statusResp.Body.Close()
+	if statusBody["currentTag"] != "v1.2.3" {
+		t.Fatalf("currentTag = %v", statusBody["currentTag"])
+	}
+
+	updateResp := doJSON(t, h, http.MethodPost, "/app/api/settings/updates/apply", `{"tag":"v1.2.4","includeAgent":true}`, adminCookie)
+	if updateResp.StatusCode != http.StatusOK {
+		t.Fatalf("apply update status = %d", updateResp.StatusCode)
+	}
+	_ = updateResp.Body.Close()
+	if appliedUpdate["tag"] != "v1.2.4" || appliedUpdate["includeAgent"] != true {
+		t.Fatalf("applied update payload = %+v", appliedUpdate)
+	}
+
+	tlsResp := doJSON(t, h, http.MethodPost, "/app/api/settings/tls/configure", `{"domain":"glycoview.example.com","email":"admin@example.com","challengeType":"dns-01","provider":"cloudflare","env":{"CF_DNS_API_TOKEN":"secret-token"}}`, adminCookie)
+	if tlsResp.StatusCode != http.StatusOK {
+		t.Fatalf("configure tls status = %d", tlsResp.StatusCode)
+	}
+	_ = tlsResp.Body.Close()
+	if configuredTLS["provider"] != "cloudflare" {
+		t.Fatalf("configured tls payload = %+v", configuredTLS)
+	}
+
+	doctorResp := doJSON(t, h, http.MethodGet, "/app/api/settings/status", "", doctorCookie)
+	if doctorResp.StatusCode != http.StatusForbidden {
+		t.Fatalf("doctor settings status = %d", doctorResp.StatusCode)
+	}
+	_ = doctorResp.Body.Close()
+}
+
 func doJSON(t *testing.T, h *testutil.Harness, method, path, body, cookie string) *http.Response {
 	t.Helper()
 	var reader *bytes.Reader
@@ -1165,7 +1293,7 @@ func doJSON(t *testing.T, h *testutil.Harness, method, path, body, cookie string
 func sessionCookie(t *testing.T, resp *http.Response) string {
 	t.Helper()
 	for _, cookie := range resp.Cookies() {
-		if cookie.Name == "bscout_session" {
+		if cookie.Name == "glycoview_session" {
 			return cookie.Name + "=" + cookie.Value
 		}
 	}

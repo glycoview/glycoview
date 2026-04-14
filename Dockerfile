@@ -20,15 +20,15 @@ RUN go mod download
 COPY . .
 COPY --from=web-build /workspace/frontend/dist ./web/dist
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH:-amd64} go build -trimpath -ldflags="-s -w" -o /out/bscout ./cmd/bscout
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH:-amd64} go build -trimpath -ldflags="-s -w" -o /out/glycoview ./cmd/glycoview
 
-FROM gcr.io/distroless/static-debian12
+FROM alpine:3.22
 WORKDIR /app
 
-COPY --from=go-build /out/bscout /app/bscout
+COPY --from=go-build /out/glycoview /app/glycoview
 COPY --from=go-build /workspace/web/dist /app/web/dist
 
 EXPOSE 8080
 
 ENV ADDR=:8080
-ENTRYPOINT ["/app/bscout"]
+ENTRYPOINT ["/app/glycoview"]

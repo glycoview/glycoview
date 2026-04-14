@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-STACK_DIR="/opt/bscout"
-STACK_NAME="bscout"
+STACK_DIR="/opt/glycoview"
+STACK_NAME="glycoview"
 STACK_FILE="${STACK_DIR}/stack/stack.yml"
 ENV_FILE="${STACK_DIR}/stack/.env"
 

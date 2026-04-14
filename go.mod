@@ -1,4 +1,4 @@
-module github.com/better-monitoring/bscout
+module github.com/better-monitoring/glycoview
 
 go 1.25.0
 

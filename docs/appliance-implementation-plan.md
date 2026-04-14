@@ -2,11 +2,18 @@
 
 ## Phase 1: Build and Release
 
-- Build `bscout` multi-arch images for `linux/amd64` and `linux/arm64`
-- Build `bscout-agent` multi-arch images
-- Publish both to GHCR
+- Build `glycoview` multi-arch images for `linux/amd64` and `linux/arm64`
+- Build `glycoview-agent` multi-arch images
+- Publish both to GHCR only, not Docker Hub
 - Produce release metadata with immutable digests
 - Publish Raspberry Pi image artifacts to GitHub Releases
+
+Target image names:
+
+- `ghcr.io/glycoview/glycoview`
+- `ghcr.io/glycoview/glycoview-agent`
+
+For PAT-free publishing, the repository should live under the `glycoview` owner/org so GitHub Actions can publish with `GITHUB_TOKEN`.
 
 ## Phase 2: Runtime Packaging
 
@@ -18,7 +25,7 @@
 
 ## Phase 3: Agent Foundation
 
-Implement `bscout-agent` APIs:
+Implement `glycoview-agent` APIs:
 
 - `GET /healthz`
 - `GET /v1/system/status`

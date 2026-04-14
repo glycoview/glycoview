@@ -19,7 +19,7 @@ export function AuthShell({
                 B
               </div>
               <div>
-                <div className="text-xl font-semibold tracking-tight">BScout</div>
+                <div className="text-xl font-semibold tracking-tight">GlycoView</div>
                 <div className="text-sm text-slate-500">Clinical dashboard</div>
               </div>
             </div>

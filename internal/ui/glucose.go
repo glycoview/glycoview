@@ -6,7 +6,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/better-monitoring/bscout/internal/model"
+	"github.com/better-monitoring/glycoview/internal/model"
 )
 
 func glucoseSamples(records []model.Record) []GlucosePoint {

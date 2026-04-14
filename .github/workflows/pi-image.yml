@@ -19,26 +19,26 @@ jobs:
 
       - name: Prepare appliance bundle
         run: |
-          mkdir -p dist/pi-image/opt/bscout/stack
-          cp deploy/swarm/stack.yml dist/pi-image/opt/bscout/stack/stack.yml
-          cp deploy/swarm/.env.example dist/pi-image/opt/bscout/stack/.env.example
-          mkdir -p dist/pi-image/opt/bscout/bootstrap
-          cp deploy/bootstrap/bootstrap.sh dist/pi-image/opt/bscout/bootstrap/bootstrap.sh
-          chmod +x dist/pi-image/opt/bscout/bootstrap/bootstrap.sh
+          mkdir -p dist/pi-image/opt/glycoview/stack
+          cp deploy/swarm/stack.yml dist/pi-image/opt/glycoview/stack/stack.yml
+          cp deploy/swarm/.env.example dist/pi-image/opt/glycoview/stack/.env.example
+          mkdir -p dist/pi-image/opt/glycoview/bootstrap
+          cp deploy/bootstrap/bootstrap.sh dist/pi-image/opt/glycoview/bootstrap/bootstrap.sh
+          chmod +x dist/pi-image/opt/glycoview/bootstrap/bootstrap.sh
           mkdir -p dist/pi-image/etc/systemd/system
-          cp deploy/bootstrap/bscout-appliance-bootstrap.service dist/pi-image/etc/systemd/system/
+          cp deploy/bootstrap/glycoview-appliance-bootstrap.service dist/pi-image/etc/systemd/system/
           cp deploy/bootstrap/cloud-init-user-data.example dist/pi-image/
 
       - name: Archive appliance assets
         run: |
           cd dist/pi-image
-          tar -czf ../bscout-pi-appliance-${{ inputs.release_tag }}.tar.gz .
+          tar -czf ../glycoview-pi-appliance-${{ inputs.release_tag }}.tar.gz .
 
       - name: Publish artifact
         uses: actions/upload-artifact@v4
         with:
-          name: bscout-pi-appliance-${{ inputs.release_tag }}
-          path: dist/bscout-pi-appliance-${{ inputs.release_tag }}.tar.gz
+          name: glycoview-pi-appliance-${{ inputs.release_tag }}
+          path: dist/glycoview-pi-appliance-${{ inputs.release_tag }}.tar.gz
 
       - name: Release note
         run: |
@@ -54,5 +54,5 @@ jobs:
         with:
           tag_name: ${{ inputs.release_tag }}
           files: |
-            dist/bscout-pi-appliance-${{ inputs.release_tag }}.tar.gz
+            dist/glycoview-pi-appliance-${{ inputs.release_tag }}.tar.gz
           body_path: dist/release-notes.md

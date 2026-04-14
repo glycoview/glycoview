@@ -151,3 +151,59 @@ export type AuthStatus = {
   authenticated: boolean
   user?: AppUser
 }
+
+export type TLSField = {
+  key: string
+  label: string
+  placeholder?: string
+  secret?: boolean
+}
+
+export type TLSProvider = {
+  id: string
+  label: string
+  fields: TLSField[]
+}
+
+export type ApplianceTLSConfig = {
+  domain: string
+  email: string
+  challengeType: "http-01" | "dns-01" | string
+  provider?: string
+  env?: Record<string, string>
+  configuredAt?: string
+  appliedAt?: string
+}
+
+export type ApplianceStatus = {
+  service: string
+  dockerManaged: boolean
+  stackName: string
+  stackFile: string
+  stackEnvFile: string
+  currentTag: string
+  currentImage: string
+  currentAgentTag: string
+  currentAgentImage: string
+  lastAction?: string
+  lastMessage?: string
+  lastActionAt?: string
+  tls: ApplianceTLSConfig
+}
+
+export type UpdateCheckResponse = {
+  currentTag: string
+  latestTag?: string
+  updateAvailable: boolean
+  releaseUrl?: string
+  checkedAt?: string
+  source: string
+}
+
+export type ApplianceActionResponse = {
+  status: string
+  message: string
+  currentTag?: string
+  currentAgentTag?: string
+  appliedAt?: string
+}

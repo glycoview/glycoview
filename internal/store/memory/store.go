@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/better-monitoring/bscout/internal/model"
-	"github.com/better-monitoring/bscout/internal/store"
+	"github.com/better-monitoring/glycoview/internal/model"
+	"github.com/better-monitoring/glycoview/internal/store"
 )
 
 type Store struct {
