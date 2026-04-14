@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 env:
@@ -58,3 +58,79 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+  pi-image:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Resolve release tag
+        id: vars
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          echo "release_tag=${tag}" >>"${GITHUB_OUTPUT}"
+          echo "image_name=glycoview-${tag}-bookworm-arm64" >>"${GITHUB_OUTPUT}"
+
+      - name: Prepare pi-gen stage assets
+        run: |
+          chmod +x deploy/pi-gen/prepare-image.sh
+          deploy/pi-gen/prepare-image.sh "${{ steps.vars.outputs.release_tag }}"
+
+      - name: Build flashable Raspberry Pi image
+        id: pigen
+        uses: usimd/pi-gen-action@v1
+        with:
+          pi-gen-version: arm64
+          release: bookworm
+          image-name: ${{ steps.vars.outputs.image_name }}
+          stage-list: stage0 stage1 stage2 ./deploy/pi-gen/stage-glycoview
+          hostname: glycoview
+          username: glycoview
+          password: glycoview
+          disable-first-boot-user-rename: 1
+          enable-ssh: 0
+          enable-cloud-init: 0
+          export-last-stage-only: true
+          increase-runner-disk-size: true
+          compression: xz
+          timezone: Europe/Berlin
+          locale: en_US.UTF-8
+          keyboard-keymap: us
+          keyboard-layout: English (US)
+          verbose-output: true
+
+      - name: Generate checksum
+        run: |
+          sha256sum "${{ steps.pigen.outputs.image-path }}" > "${{ steps.pigen.outputs.image-path }}.sha256"
+
+      - name: Upload image artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.vars.outputs.image_name }}
+          path: |
+            ${{ steps.pigen.outputs.image-path }}
+            ${{ steps.pigen.outputs.image-path }}.sha256
+
+      - name: Publish release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.vars.outputs.release_tag }}
+          files: |
+            ${{ steps.pigen.outputs.image-path }}
+            ${{ steps.pigen.outputs.image-path }}.sha256
+          body: |
+            Flash the `.img.xz` file to a Raspberry Pi SD card using Raspberry Pi Imager or `dd`.
+
+            On first boot, the image starts Docker, initializes the local Swarm, and deploys the GlycoView appliance stack.
+
+            Before first boot you can edit `glycoview-firstboot.env` on the boot partition to override:
+
+            - `GLYCOVIEW_DOMAIN`
+            - `POSTGRES_PASSWORD`
+            - `GLYCOVIEW_AGENT_TOKEN`
+            - `GLYCOVIEW_TAG`
+            - `GLYCOVIEW_AGENT_TAG`

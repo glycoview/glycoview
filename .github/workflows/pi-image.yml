@@ -1,8 +1,6 @@
 name: pi-image
 
 on:
-  push:
-    tags: ["v*"]
   workflow_dispatch:
     inputs:
       release_tag:
