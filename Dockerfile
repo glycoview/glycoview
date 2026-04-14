@@ -18,7 +18,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY . .
-COPY --from=web-build /workspace/frontend/dist ./web/dist
+COPY --from=web-build /workspace/web/dist ./web/dist
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=${TARGETARCH:-amd64} go build -trimpath -ldflags="-s -w" -o /out/glycoview ./cmd/glycoview
 
