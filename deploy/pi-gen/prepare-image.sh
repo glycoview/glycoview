@@ -24,6 +24,6 @@ cp "${STAGE_DIR}/00-packages" "${SUBSTAGE_DIR}/00-packages"
 cp "${STAGE_DIR}/00-run-chroot.sh" "${SUBSTAGE_DIR}/00-run-chroot.sh"
 chmod +x "${SUBSTAGE_DIR}/00-run-chroot.sh"
 
-for path in "${STACK_DIR}/.env.example" "${BOOT_DIR}/glycoview-firstboot.env"; do
+for path in "${STACK_DIR}/.env.example"; do
   perl -0pi -e 's/^GLYCOVIEW_TAG=.*/GLYCOVIEW_TAG='"${RELEASE_TAG}"'/m; s/^GLYCOVIEW_AGENT_TAG=.*/GLYCOVIEW_AGENT_TAG='"${RELEASE_TAG}"'/m' "${path}"
 done
