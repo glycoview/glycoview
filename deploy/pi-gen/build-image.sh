@@ -17,7 +17,7 @@ sudo apt-get update
 sudo apt-get install -y --no-install-recommends \
   coreutils quilt parted debootstrap zerofree zip dosfstools e2fsprogs \
   libarchive-tools libcap2-bin grep rsync xz-utils file git curl bc gpg pigz xxd \
-  arch-test bmap-tools kmod debian-archive-keyring qemu-user-binfmt
+  arch-test bmap-tools kmod debian-archive-keyring qemu-user qemu-user-binfmt
 
 git clone --depth 1 --branch arm64 https://github.com/RPi-Distro/pi-gen.git "${PI_GEN_DIR}"
 
