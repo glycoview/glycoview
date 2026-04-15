@@ -94,7 +94,6 @@ jobs:
           hostname: glycoview
           username: glycoview
           password: ${{ steps.secrets.outputs.os_password }}
-          disable-first-boot-user-rename: 1
           enable-ssh: 0
           enable-cloud-init: 0
           export-last-stage-only: true
