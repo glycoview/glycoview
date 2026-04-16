@@ -82,9 +82,11 @@ services:
       labels:
         - traefik.enable=true
         - traefik.http.routers.glycoview.rule=Host(`${GLYCOVIEW_DOMAIN}`)
-        - traefik.http.routers.glycoview.entrypoints=websecure
-        - traefik.http.routers.glycoview.tls=true
-        - traefik.http.routers.glycoview.tls.certresolver=letsencrypt
+        - traefik.http.routers.glycoview.entrypoints=web
+        - traefik.http.routers.glycoview-secure.rule=Host(`${GLYCOVIEW_DOMAIN}`)
+        - traefik.http.routers.glycoview-secure.entrypoints=websecure
+        - traefik.http.routers.glycoview-secure.tls=true
+        - traefik.http.routers.glycoview-secure.tls.certresolver=letsencrypt
         - traefik.http.services.glycoview.loadbalancer.server.port=8080
 
   glycoview-agent:
