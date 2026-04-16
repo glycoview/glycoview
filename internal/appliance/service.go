@@ -652,12 +652,14 @@ func (s *Service) deployStack(ctx context.Context, env map[string]string) error 
 		return err
 	}
 
-	args := []string{"stack", "deploy", "--with-registry-auth", "-c", s.cfg.StackFile}
+	args := []string{"compose", "--project-name", s.cfg.StackName, "--env-file", s.cfg.StackEnvFile, "-f", s.cfg.StackFile}
 	if _, err := os.Stat(s.cfg.OverrideFile); err == nil {
 		args = append(args, "-c", s.cfg.OverrideFile)
 	}
-	args = append(args, s.cfg.StackName)
-	_, err := s.runner.Run(ctx, env, "docker", args...)
+	if _, err := s.runner.Run(ctx, env, "docker", append(args, "pull")...); err != nil {
+		return err
+	}
+	_, err := s.runner.Run(ctx, env, "docker", append(args, "up", "-d", "--remove-orphans")...)
 	return err
 }
 

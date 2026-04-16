@@ -3,9 +3,9 @@ version: "3.9"
 services:
   traefik:
     image: traefik:v3.5
+    restart: unless-stopped
     command:
       - --providers.docker=true
-      - --providers.docker.swarmmode=true
       - --providers.docker.exposedbydefault=false
       - --providers.file.directory=/etc/traefik/dynamic
       - --providers.file.watch=true
@@ -25,19 +25,14 @@ services:
       - traefik_acme:/data
     networks:
       - edge
-    deploy:
-      placement:
-        constraints:
-          - node.role == manager
 
   postgres:
     image: postgres:17
+    restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-glycoview}
       POSTGRES_USER: ${POSTGRES_USER:-glycoview}
-      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
-    secrets:
-      - postgres_password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -47,13 +42,10 @@ services:
       retries: 10
     networks:
       - control
-    deploy:
-      placement:
-        constraints:
-          - node.role == manager
 
   glycoview:
     image: ${GLYCOVIEW_IMAGE:-ghcr.io/glycoview/glycoview}:${GLYCOVIEW_TAG:-latest}
+    restart: unless-stopped
     environment:
       ADDR: :8080
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -61,6 +53,9 @@ services:
       GLYCOVIEW_AGENT_URL: http://glycoview-agent:8090
       GLYCOVIEW_AGENT_TOKEN: ${GLYCOVIEW_AGENT_TOKEN}
       UI_BUILD_ON_START: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - edge
       - control
@@ -69,28 +64,19 @@ services:
       interval: 15s
       timeout: 5s
       retries: 8
-    deploy:
-      replicas: 2
-      update_config:
-        parallelism: 1
-        delay: 5s
-        order: start-first
-        failure_action: rollback
-      rollback_config:
-        parallelism: 1
-        order: stop-first
-      labels:
-        - traefik.enable=true
-        - traefik.http.routers.glycoview.rule=Host(`${GLYCOVIEW_DOMAIN}`)
-        - traefik.http.routers.glycoview.entrypoints=web
-        - traefik.http.routers.glycoview-secure.rule=Host(`${GLYCOVIEW_DOMAIN}`)
-        - traefik.http.routers.glycoview-secure.entrypoints=websecure
-        - traefik.http.routers.glycoview-secure.tls=true
-        - traefik.http.routers.glycoview-secure.tls.certresolver=letsencrypt
-        - traefik.http.services.glycoview.loadbalancer.server.port=8080
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.glycoview.rule=Host(`${GLYCOVIEW_DOMAIN}`)
+      - traefik.http.routers.glycoview.entrypoints=web
+      - traefik.http.routers.glycoview-secure.rule=Host(`${GLYCOVIEW_DOMAIN}`)
+      - traefik.http.routers.glycoview-secure.entrypoints=websecure
+      - traefik.http.routers.glycoview-secure.tls=true
+      - traefik.http.routers.glycoview-secure.tls.certresolver=letsencrypt
+      - traefik.http.services.glycoview.loadbalancer.server.port=8080
 
   glycoview-agent:
     image: ${GLYCOVIEW_AGENT_IMAGE:-ghcr.io/glycoview/glycoview-agent}:${GLYCOVIEW_AGENT_TAG:-latest}
+    restart: unless-stopped
     environment:
       GLYCOVIEW_AGENT_ADDR: :8090
       GLYCOVIEW_AGENT_TOKEN: ${GLYCOVIEW_AGENT_TOKEN}
@@ -106,14 +92,6 @@ services:
       - glycoview_agent_state:/var/lib/glycoview-agent
     networks:
       - control
-    deploy:
-      placement:
-        constraints:
-          - node.role == manager
-
-secrets:
-  postgres_password:
-    external: true
 
 volumes:
   postgres_data:
@@ -122,8 +100,4 @@ volumes:
 
 networks:
   edge:
-    driver: overlay
-    attachable: true
   control:
-    driver: overlay
-    attachable: true

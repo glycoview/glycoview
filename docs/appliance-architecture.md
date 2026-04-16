@@ -9,11 +9,11 @@ This document defines the target self-hosted Raspberry Pi appliance for `glycovi
 - Nightscout-compatible API access retained.
 - Clinician dashboard hosted by the Go server.
 - TLS onboarding from the dashboard, including DNS-01 flows.
-- App updates initiated from the dashboard with automatic rollback.
+- App updates initiated from the dashboard without routine SSH access.
 
 ## Runtime Topology
 
-The appliance runtime is a single-node Docker Swarm on Raspberry Pi OS Lite.
+The appliance runtime is a single-node Docker Compose deployment on Raspberry Pi OS Lite.
 
 Services:
 
@@ -23,7 +23,6 @@ Services:
   - HTTP-01 and DNS-01 support
 - `glycoview`
   - Main application
-  - 2 replicas for start-first rolling updates
   - No public port exposure
 - `postgres`
   - Single replica
@@ -32,25 +31,22 @@ Services:
   - Local management API
   - Docker socket access
   - Certificate provider config writes
-  - Update orchestration and rollback
+  - Update orchestration
   - Shared-token auth for dashboard control requests
 
-## Why Swarm
+## Why Compose
 
-Single-node Swarm is the lowest-complexity Docker runtime that still gives:
+Single-node Compose is the lowest-complexity Docker runtime for this appliance:
 
-- rolling updates
-- `start-first` update order
-- health-aware rollout
-- rollback primitives
-- secrets and configs
-
-Those properties matter for dashboard-triggered updates without SSH.
+- no cluster bootstrap step
+- simpler first-boot behavior on Raspberry Pi
+- easier local debugging and recovery
+- fewer moving parts for non-technical self-hosters
 
 ## Network Layout
 
-- `edge` overlay network: `traefik`, `glycoview`
-- `control` overlay network: `glycoview`, `glycoview-agent`, `postgres`
+- `edge` bridge network: `traefik`, `glycoview`
+- `control` bridge network: `glycoview`, `glycoview-agent`, `postgres`
 - `glycoview-agent` is not exposed publicly
 
 ## Persistent State
@@ -82,7 +78,7 @@ Provider support should be implemented through Traefik's ACME DNS support, which
 - Gandi
 - Google Cloud DNS
 
-Credentials are written by `glycoview-agent` into Docker secrets or encrypted local config, never stored in plaintext in Postgres. The agent state file is encrypted at rest with `GLYCOVIEW_AGENT_STATE_KEY` or, by default, the shared `GLYCOVIEW_AGENT_TOKEN`.
+Credentials are written by `glycoview-agent` into encrypted local config, never stored in plaintext in Postgres. The agent state file is encrypted at rest with `GLYCOVIEW_AGENT_STATE_KEY` or, by default, the shared `GLYCOVIEW_AGENT_TOKEN`.
 
 ## Update Model
 
@@ -92,10 +88,9 @@ Agent responsibilities:
 
 - check current image tag
 - check latest release/image digest
-- pre-pull images
-- run `docker service update` with `start-first`
+- pull images
+- run `docker compose up -d`
 - wait for service health
-- rollback on failure
 - report progress back to the dashboard
 
 Postgres image updates are not automatic in v1. App and Traefik updates can be automated; database major version changes must remain explicit maintenance operations.
@@ -106,9 +101,9 @@ The Raspberry Pi image boots into a preinstalled bootstrap service that:
 
 1. configures hostname/timezone/network from boot config
 2. ensures Docker is available
-3. initializes Swarm if needed
+3. ensures Docker Compose is available
 4. writes stack env/config
-5. deploys the stack
+5. starts the appliance with Compose
 6. exposes setup UI at local IP or `glycoview.local`
 
 ## Dashboard Setup Flow
@@ -131,4 +126,4 @@ This repository will contain:
 - bootstrap assets
 - GitHub Actions for release automation
 
-The full certificate provider UX and rolling update orchestration exist in a first usable version; remaining work is hardening, richer progress reporting, and more provider coverage.
+The full certificate provider UX exists in a first usable version; remaining work is hardening, richer progress reporting, safer in-place updates, and more provider coverage.

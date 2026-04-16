@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -228,6 +229,58 @@ func TestSyncDynamicDNSUpdatesCloudflareRecord(t *testing.T) {
 		t.Fatalf("last known IP = %q", stored.DynamicDNS.LastKnownIP)
 	}
 	service.cfg.PublicIPURL = originalPublicIPURL
+}
+
+func TestApplyUpdateUsesDockerCompose(t *testing.T) {
+	dir := t.TempDir()
+	stackFile := filepath.Join(dir, "stack.yml")
+	stackEnvFile := filepath.Join(dir, ".env")
+	overrideFile := filepath.Join(dir, "override.yml")
+
+	if err := os.WriteFile(stackFile, []byte("version: '3.9'\nservices: {}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(stackEnvFile, []byte(strings.Join([]string{
+		"GLYCOVIEW_TAG=v1.0.0",
+		"GLYCOVIEW_AGENT_TAG=v1.0.0",
+		"POSTGRES_PASSWORD=test-password",
+	}, "\n")+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	var calls [][]string
+	service := NewService(Config{
+		StateDir:      dir,
+		StackName:     "glycoview",
+		StackFile:     stackFile,
+		StackEnvFile:  stackEnvFile,
+		OverrideFile:  overrideFile,
+		EncryptionKey: "test-agent-secret",
+		Runner: runnerFunc(func(ctx context.Context, env map[string]string, name string, args ...string) (string, error) {
+			calls = append(calls, append([]string{name}, args...))
+			return "ok", nil
+		}),
+	})
+
+	if _, err := service.ApplyUpdate(context.Background(), ApplyUpdateRequest{Tag: "v1.1.0"}); err != nil {
+		t.Fatal(err)
+	}
+
+	want := [][]string{
+		{"docker", "compose", "--project-name", "glycoview", "--env-file", stackEnvFile, "-f", stackFile, "-c", overrideFile, "pull"},
+		{"docker", "compose", "--project-name", "glycoview", "--env-file", stackEnvFile, "-f", stackFile, "-c", overrideFile, "up", "-d", "--remove-orphans"},
+	}
+	if !reflect.DeepEqual(calls, want) {
+		t.Fatalf("compose calls mismatch:\n got: %#v\nwant: %#v", calls, want)
+	}
+
+	env, err := service.loadEnv()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if env["GLYCOVIEW_TAG"] != "v1.1.0" {
+		t.Fatalf("GLYCOVIEW_TAG = %q", env["GLYCOVIEW_TAG"])
+	}
 }
 
 type roundTripperFunc func(req *http.Request) (*http.Response, error)

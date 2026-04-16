@@ -11,7 +11,7 @@ This repository currently contains:
 
 Nightscout API behavior is provided through the external `nightscout-api` module, while this repository owns the application shell, storage implementations, appliance agent, and clinician workflows.
 
-The appliance agent now expects a shared control-plane secret via `GLYCOVIEW_AGENT_TOKEN`. In the default Swarm layout, that token is used both to authenticate dashboard-to-agent requests and, unless overridden by `GLYCOVIEW_AGENT_STATE_KEY`, to encrypt appliance state that contains DNS challenge credentials.
+The appliance agent now expects a shared control-plane secret via `GLYCOVIEW_AGENT_TOKEN`. In the default appliance layout, that token is used both to authenticate dashboard-to-agent requests and, unless overridden by `GLYCOVIEW_AGENT_STATE_KEY`, to encrypt appliance state that contains DNS challenge credentials.
 
 Deployment and appliance scaffolding now lives in:
 

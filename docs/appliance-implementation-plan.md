@@ -18,7 +18,7 @@ For PAT-free publishing, the repository should live under the `glycoview` owner/
 ## Phase 2: Runtime Packaging
 
 - Add production Dockerfiles
-- Add Swarm stack manifests
+- Add Compose appliance manifests
 - Add env/config templates
 - Add first-boot bootstrap script
 - Add systemd unit for appliance bootstrap
@@ -35,7 +35,7 @@ Implement `glycoview-agent` APIs:
 - `GET /v1/tls/providers`
 - `POST /v1/tls/configure`
 
-Initial version may return `501` for update and TLS write flows while the stack/build plumbing lands.
+Initial version may return `501` for update and TLS write flows while the compose/build plumbing lands.
 
 Status:
 
@@ -68,14 +68,14 @@ Each provider needs:
 - Traefik env/secret mapping
 - provisioning status feedback
 
-## Phase 6: Rolling Updates
+## Phase 6: In-Place Updates
 
-Use Swarm service updates:
+Use Compose-driven appliance updates:
 
-- app replicas: `2`
-- update order: `start-first`
-- failure action: `rollback`
-- healthcheck gating before old task shutdown
+- pull updated images
+- recreate services with `docker compose up -d`
+- use service healthchecks to detect startup failures
+- keep manual rollback to the previous tag
 
 Dashboard flow:
 
