@@ -21,7 +21,9 @@ cp "${ROOT_DIR}/deploy/bootstrap/firstboot.env.example" "${STACK_DIR}/.env.examp
 
 chmod +x "${BOOTSTRAP_DIR}/bootstrap.sh"
 cp "${STAGE_DIR}/00-packages" "${SUBSTAGE_DIR}/00-packages"
+cp "${STAGE_DIR}/00-run.sh" "${SUBSTAGE_DIR}/00-run.sh"
 cp "${STAGE_DIR}/00-run-chroot.sh" "${SUBSTAGE_DIR}/00-run-chroot.sh"
+chmod +x "${SUBSTAGE_DIR}/00-run.sh"
 chmod +x "${SUBSTAGE_DIR}/00-run-chroot.sh"
 
 for path in "${STACK_DIR}/.env.example"; do
