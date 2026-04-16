@@ -28,7 +28,7 @@ jobs:
             tag="${{ inputs.release_tag }}"
           fi
           echo "release_tag=${tag}" >>"${GITHUB_OUTPUT}"
-          echo "image_name=glycoview-${tag}-bookworm-arm64" >>"${GITHUB_OUTPUT}"
+          echo "image_name=glycoview-${tag}-trixie-arm64" >>"${GITHUB_OUTPUT}"
 
       - name: Generate appliance OS password
         id: secrets
@@ -43,27 +43,37 @@ jobs:
 
       - name: Build flashable Raspberry Pi image
         id: pigen
-        run: |
-          chmod +x deploy/pi-gen/build-image.sh
-          deploy/pi-gen/build-image.sh "${{ steps.vars.outputs.release_tag }}" "${{ steps.vars.outputs.image_name }}" "${{ steps.secrets.outputs.os_password }}"
-          image_path="$(find out/pi-gen -maxdepth 1 -type f -name '*.img.xz' | head -n 1)"
-          if [[ -z "${image_path}" ]]; then
-            echo "pi-gen did not produce an image" >&2
-            exit 1
-          fi
-          echo "image_path=${image_path}" >>"${GITHUB_OUTPUT}"
+        uses: usimd/pi-gen-action@v1
+        with:
+          pi-gen-version: arm64
+          release: trixie
+          image-name: ${{ steps.vars.outputs.image_name }}
+          pi-gen-dir: .tmp/pi-gen
+          stage-list: stage0 stage1 stage2 ./deploy/pi-gen/stage-glycoview
+          hostname: glycoview
+          username: glycoview
+          password: ${{ steps.secrets.outputs.os_password }}
+          enable-ssh: 0
+          enable-cloud-init: 0
+          export-last-stage-only: true
+          compression: xz
+          timezone: Europe/Berlin
+          locale: en_US.UTF-8
+          keyboard-keymap: us
+          keyboard-layout: English (US)
+          verbose-output: true
 
       - name: Generate checksum
         run: |
-          sha256sum "${{ steps.pigen.outputs.image_path }}" > "${{ steps.pigen.outputs.image_path }}.sha256"
+          sha256sum "${{ steps.pigen.outputs.image-path }}" > "${{ steps.pigen.outputs.image-path }}.sha256"
 
       - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ steps.vars.outputs.image_name }}
           path: |
-            ${{ steps.pigen.outputs.image_path }}
-            ${{ steps.pigen.outputs.image_path }}.sha256
+            ${{ steps.pigen.outputs.image-path }}
+            ${{ steps.pigen.outputs.image-path }}.sha256
 
       - name: Publish release assets
         if: startsWith(steps.vars.outputs.release_tag, 'v')
@@ -71,8 +81,8 @@ jobs:
         with:
           tag_name: ${{ steps.vars.outputs.release_tag }}
           files: |
-            ${{ steps.pigen.outputs.image_path }}
-            ${{ steps.pigen.outputs.image_path }}.sha256
+            ${{ steps.pigen.outputs.image-path }}
+            ${{ steps.pigen.outputs.image-path }}.sha256
           body: |
             Flash the `.img.xz` file to a Raspberry Pi SD card with Raspberry Pi Imager.
 
@@ -86,4 +96,4 @@ jobs:
 
             If you want to expose the appliance publicly, change the domain and TLS settings later from the web UI under `Settings`.
 
-            This image already embeds release `${{ steps.vars.outputs.release_tag }}` for both `glycoview` and `glycoview-agent`.
+            This image embeds release `${{ steps.vars.outputs.release_tag }}` for both `glycoview` and `glycoview-agent` on a Raspberry Pi OS Trixie arm64 base.
