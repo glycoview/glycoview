@@ -5,6 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PI_GEN_DIR="${ROOT_DIR}/.tmp/pi-gen"
 OUT_DIR="${ROOT_DIR}/out/pi-gen"
 WORK_DIR="${ROOT_DIR}/out/pi-gen-work"
+PI_GEN_BRANCH="bookworm"
 
 RELEASE_TAG="${1:?release tag is required}"
 IMAGE_NAME="${2:?image name is required}"
@@ -19,7 +20,7 @@ sudo apt-get install -y --no-install-recommends \
   libarchive-tools libcap2-bin grep rsync xz-utils file git curl bc gpg pigz xxd \
   arch-test bmap-tools kmod debian-archive-keyring qemu-user qemu-user-binfmt
 
-git clone --depth 1 --branch arm64 https://github.com/RPi-Distro/pi-gen.git "${PI_GEN_DIR}"
+git clone --depth 1 --branch "${PI_GEN_BRANCH}" https://github.com/RPi-Distro/pi-gen.git "${PI_GEN_DIR}"
 
 KEYRING_PATH="${PI_GEN_DIR}/debian-archive-keyring.gpg"
 rm -f "${KEYRING_PATH}"
@@ -47,6 +48,14 @@ if old not in text:
     raise SystemExit("expected bootstrap keyring placeholder not found")
 common.write_text(text.replace(old, new))
 
+stage0_prerun = base / "stage0" / "prerun.sh"
+text = stage0_prerun.read_text()
+needle = 'bootstrap ${RELEASE} "${ROOTFS_DIR}" http://raspbian.raspberrypi.com/raspbian/\n'
+replacement = 'if [ "$ARCH" = "arm64" ]; then\n\tbootstrap ${RELEASE} "${ROOTFS_DIR}" http://deb.debian.org/debian/\nelse\n\tbootstrap ${RELEASE} "${ROOTFS_DIR}" http://raspbian.raspberrypi.com/raspbian/\nfi\n'
+if needle not in text:
+    raise SystemExit("expected stage0 bootstrap line not found")
+stage0_prerun.write_text(text.replace(needle, replacement, 1))
+
 apt_run = base / "stage0" / "00-configure-apt" / "00-run.sh"
 text = apt_run.read_text()
 needle = 'install -m 644 files/raspberrypi-archive-keyring.pgp "${ROOTFS_DIR}/usr/share/keyrings/"\n'
@@ -60,6 +69,7 @@ cat >"${PI_GEN_DIR}/config.glycoview" <<EOF
 IMG_NAME='${IMAGE_NAME}'
 PI_GEN_RELEASE='Raspberry Pi reference'
 RELEASE='bookworm'
+ARCH='arm64'
 DEPLOY_COMPRESSION='xz'
 COMPRESSION_LEVEL='6'
 LOCALE_DEFAULT='en_US.UTF-8'
