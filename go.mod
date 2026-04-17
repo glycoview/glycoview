@@ -9,6 +9,8 @@ require (
 	github.com/jackc/pgx/v5 v5.7.6
 )
 
+require github.com/go-chi/cors v1.2.2 // indirect
+
 require (
 	github.com/glycoview/nightscout-api v0.1.0
 	github.com/jackc/pgpassfile v1.0.0 // indirect

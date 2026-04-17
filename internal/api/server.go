@@ -9,6 +9,7 @@ import (
 	nsdeps "github.com/glycoview/nightscout-api/deps"
 	"github.com/glycoview/nightscout-api/httpx"
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/cors"
 
 	"github.com/glycoview/glycoview/internal/auth"
 	"github.com/glycoview/glycoview/internal/config"
@@ -36,6 +37,14 @@ func New(cfg config.Config, dataStore store.Store, authManager *auth.Manager, ap
 
 func (s *Server) routes() http.Handler {
 	r := chi.NewRouter()
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"},
+		AllowedHeaders:   []string{"*"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: false,
+		MaxAge:           300,
+	}))
 	nsdep := nsdeps.Dependencies{
 		Config: nsconfig.Config{
 			APISecret:    s.Config.APISecret,
