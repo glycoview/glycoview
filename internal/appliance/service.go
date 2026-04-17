@@ -304,6 +304,10 @@ func (s *Service) Status(ctx context.Context) (StatusResponse, error) {
 	currentAgentTag := firstNonEmpty(env["GLYCOVIEW_AGENT_TAG"], "latest")
 	dockerManaged := s.dockerAvailable(ctx)
 
+	ipCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	currentIP, _ := s.fetchPublicIP(ipCtx)
+	cancel()
+
 	return StatusResponse{
 		Service:           "glycoview-agent",
 		DockerManaged:     dockerManaged,
@@ -319,6 +323,7 @@ func (s *Service) Status(ctx context.Context) (StatusResponse, error) {
 		LastActionAt:      state.Update.LastActionAt,
 		TLS:               s.redactedTLSConfig(state.TLS),
 		DynamicDNS:        s.redactedDynamicDNSConfig(state.DynamicDNS),
+		CurrentPublicIP:   currentIP,
 	}, nil
 }
 

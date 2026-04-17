@@ -93,6 +93,7 @@ type StatusResponse struct {
 	LastActionAt      time.Time        `json:"lastActionAt,omitempty"`
 	TLS               TLSConfig        `json:"tls"`
 	DynamicDNS        DynamicDNSConfig `json:"dynamicDns"`
+	CurrentPublicIP   string           `json:"currentPublicIp,omitempty"`
 }
 
 type UpdateCheckResponse struct {

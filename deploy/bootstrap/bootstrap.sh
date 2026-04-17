@@ -27,7 +27,7 @@ source "${ENV_FILE}"
 set +a
 
 random_secret() {
-  tr -dc 'A-Za-z0-9' </dev/urandom | head -c 40
+  LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom 2>/dev/null | head -c 40 || true
 }
 
 write_env_var() {
