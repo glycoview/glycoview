@@ -341,8 +341,8 @@ func TestApplyUpdateUsesDockerCompose(t *testing.T) {
 	}
 
 	want := [][]string{
-		{"docker", "compose", "--project-name", "glycoview", "--env-file", stackEnvFile, "-f", stackFile, "-f", overrideFile, "pull"},
-		{"docker", "compose", "--project-name", "glycoview", "--env-file", stackEnvFile, "-f", stackFile, "-f", overrideFile, "up", "-d", "--remove-orphans"},
+		{"docker", "compose", "--project-name", "glycoview", "--env-file", stackEnvFile, "-f", stackFile, "pull", "glycoview"},
+		{"docker", "compose", "--project-name", "glycoview", "--env-file", stackEnvFile, "-f", stackFile, "up", "-d", "--no-deps", "glycoview"},
 	}
 	if !reflect.DeepEqual(calls, want) {
 		t.Fatalf("compose calls mismatch:\n got: %#v\nwant: %#v", calls, want)

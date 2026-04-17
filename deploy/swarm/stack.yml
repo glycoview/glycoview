@@ -69,6 +69,7 @@ services:
       retries: 8
     labels:
       - traefik.enable=true
+      - traefik.docker.network=glycoview_edge
       - traefik.http.routers.glycoview.rule=Host(`${GLYCOVIEW_DOMAIN}`)
       - traefik.http.routers.glycoview.entrypoints=web
       - traefik.http.routers.glycoview-secure.rule=Host(`${GLYCOVIEW_DOMAIN}`)

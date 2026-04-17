@@ -627,6 +627,9 @@ func (s *Service) ApplyUpdate(ctx context.Context, req ApplyUpdateRequest) (Acti
 	if req.Tag == "" {
 		return ActionResponse{}, errors.New("tag is required")
 	}
+	if req.IncludeAgent {
+		return ActionResponse{}, errors.New("agent self-update is not supported from the UI; reflash the appliance image to upgrade the agent")
+	}
 
 	state, err := s.loadState()
 	if err != nil {
@@ -654,7 +657,8 @@ func (s *Service) ApplyUpdate(ctx context.Context, req ApplyUpdateRequest) (Acti
 	if err := s.writeOverride(state.TLS); err != nil {
 		return ActionResponse{}, err
 	}
-	if err := s.deployStack(ctx, env); err != nil {
+	deployServices := []string{"glycoview"}
+	if err := s.deployStack(ctx, env, deployServices...); err != nil {
 		state.Update.LastAction = "update-apply"
 		state.Update.LastMessage = err.Error()
 		state.Update.LastActionAt = s.now()
@@ -701,7 +705,7 @@ func (s *Service) Rollback(ctx context.Context) (ActionResponse, error) {
 	if err := s.writeOverride(state.TLS); err != nil {
 		return ActionResponse{}, err
 	}
-	if err := s.deployStack(ctx, env); err != nil {
+	if err := s.deployStack(ctx, env, "glycoview"); err != nil {
 		state.Update.LastAction = "update-rollback"
 		state.Update.LastMessage = err.Error()
 		state.Update.LastActionAt = s.now()
@@ -755,7 +759,7 @@ func (s *Service) fetchLatestRelease(ctx context.Context) (string, string, error
 	return strings.TrimSpace(payload.TagName), strings.TrimSpace(payload.HTMLURL), nil
 }
 
-func (s *Service) deployStack(ctx context.Context, env map[string]string) error {
+func (s *Service) deployStack(ctx context.Context, env map[string]string, services ...string) error {
 	if _, err := os.Stat(s.cfg.StackFile); err != nil {
 		return fmt.Errorf("stack file not found: %s", s.cfg.StackFile)
 	}
@@ -767,10 +771,21 @@ func (s *Service) deployStack(ctx context.Context, env map[string]string) error 
 	if _, err := os.Stat(s.cfg.OverrideFile); err == nil {
 		args = append(args, "-f", s.cfg.OverrideFile)
 	}
-	if _, err := s.runner.Run(ctx, env, "docker", append(args, "pull")...); err != nil {
+	pullArgs := append([]string{}, args...)
+	pullArgs = append(pullArgs, "pull")
+	pullArgs = append(pullArgs, services...)
+	if _, err := s.runner.Run(ctx, env, "docker", pullArgs...); err != nil {
 		return err
 	}
-	_, err := s.runner.Run(ctx, env, "docker", append(args, "up", "-d", "--remove-orphans")...)
+	upArgs := append([]string{}, args...)
+	upArgs = append(upArgs, "up", "-d")
+	if len(services) == 0 {
+		upArgs = append(upArgs, "--remove-orphans")
+	} else {
+		upArgs = append(upArgs, "--no-deps")
+		upArgs = append(upArgs, services...)
+	}
+	_, err := s.runner.Run(ctx, env, "docker", upArgs...)
 	return err
 }
 
@@ -875,6 +890,12 @@ func (s *Service) writeEnv(env map[string]string) error {
 }
 
 func (s *Service) writeOverride(cfg TLSConfig) error {
+	if cfg.Domain == "" || cfg.ChallengeType == "" {
+		if _, err := os.Stat(s.cfg.OverrideFile); err == nil {
+			_ = os.Remove(s.cfg.OverrideFile)
+		}
+		return nil
+	}
 	if err := os.MkdirAll(filepath.Dir(s.cfg.OverrideFile), 0o755); err != nil {
 		return err
 	}
