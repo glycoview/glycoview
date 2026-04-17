@@ -186,7 +186,8 @@ func NewRouter(dep Dependencies) http.Handler {
 		}))
 		r.Get("/settings/tls/providers", requireSessionRole(dep.AppAuth, dashboardauth.RoleAdmin, func(w http.ResponseWriter, r *http.Request, _ dashboardauth.UserSummary) {
 			var body struct {
-				Providers []appliance.TLSProvider `json:"providers"`
+				Providers  []appliance.TLSProvider    `json:"providers"`
+				Challenges []appliance.ChallengeOption `json:"challenges,omitempty"`
 			}
 			if err := agent.get(r.Context(), "/v1/tls/providers", &body); err != nil {
 				httpx.WriteJSON(w, http.StatusBadGateway, map[string]any{"status": 502, "message": err.Error()})

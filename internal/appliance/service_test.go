@@ -231,6 +231,80 @@ func TestSyncDynamicDNSUpdatesCloudflareRecord(t *testing.T) {
 	service.cfg.PublicIPURL = originalPublicIPURL
 }
 
+func TestDuckDNSSubdomainExtraction(t *testing.T) {
+	cases := map[string]string{
+		"myname.duckdns.org":  "myname",
+		"Myname.DuckDNS.org.": "myname",
+		"myname":              "myname",
+		"":                    "",
+		"bad name":            "",
+	}
+	for input, want := range cases {
+		if got := duckDNSSubdomain(input); got != want {
+			t.Fatalf("duckDNSSubdomain(%q) = %q, want %q", input, got, want)
+		}
+	}
+}
+
+func TestSyncDynamicDNSUpdatesDuckDNSRecord(t *testing.T) {
+	dir := t.TempDir()
+	var updatedDomain, updatedIP, updatedToken string
+	api := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/ip":
+			_, _ = w.Write([]byte("198.51.100.7"))
+		case "/update":
+			updatedDomain = r.URL.Query().Get("domains")
+			updatedIP = r.URL.Query().Get("ip")
+			updatedToken = r.URL.Query().Get("token")
+			_, _ = w.Write([]byte("OK"))
+		default:
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer api.Close()
+
+	service := NewService(Config{
+		StateDir:      dir,
+		PublicIPURL:   api.URL + "/ip",
+		EncryptionKey: "test-agent-secret",
+		HTTPClient:    api.Client(),
+	})
+
+	if _, err := service.ConfigureDynamicDNS(context.Background(), DynamicDNSConfig{
+		Enabled:    true,
+		Provider:   "duckdns",
+		Zone:       "duckdns.org",
+		RecordName: "myhome.duckdns.org",
+		Env:        map[string]string{"DUCKDNS_TOKEN": "dd-token"},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	originalClient := service.client
+	service.client = &http.Client{Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		if strings.HasPrefix(req.URL.String(), "https://www.duckdns.org/") {
+			req.URL.Scheme = "http"
+			req.URL.Host = strings.TrimPrefix(api.URL, "http://")
+		}
+		return originalClient.Do(req)
+	})}
+
+	if _, err := service.SyncDynamicDNS(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if updatedDomain != "myhome" || updatedIP != "198.51.100.7" || updatedToken != "dd-token" {
+		t.Fatalf("duckdns update not called correctly: domain=%q ip=%q token=%q", updatedDomain, updatedIP, updatedToken)
+	}
+	stored, err := service.loadState()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stored.DynamicDNS.LastKnownIP != "198.51.100.7" {
+		t.Fatalf("last known IP = %q", stored.DynamicDNS.LastKnownIP)
+	}
+}
+
 func TestApplyUpdateUsesDockerCompose(t *testing.T) {
 	dir := t.TempDir()
 	stackFile := filepath.Join(dir, "stack.yml")
@@ -267,8 +341,8 @@ func TestApplyUpdateUsesDockerCompose(t *testing.T) {
 	}
 
 	want := [][]string{
-		{"docker", "compose", "--project-name", "glycoview", "--env-file", stackEnvFile, "-f", stackFile, "-c", overrideFile, "pull"},
-		{"docker", "compose", "--project-name", "glycoview", "--env-file", stackEnvFile, "-f", stackFile, "-c", overrideFile, "up", "-d", "--remove-orphans"},
+		{"docker", "compose", "--project-name", "glycoview", "--env-file", stackEnvFile, "-f", stackFile, "-f", overrideFile, "pull"},
+		{"docker", "compose", "--project-name", "glycoview", "--env-file", stackEnvFile, "-f", stackFile, "-f", overrideFile, "up", "-d", "--remove-orphans"},
 	}
 	if !reflect.DeepEqual(calls, want) {
 		t.Fatalf("compose calls mismatch:\n got: %#v\nwant: %#v", calls, want)

@@ -60,10 +60,24 @@ set -a
 source "${ENV_FILE}"
 set +a
 
-if ! docker info >/dev/null 2>&1; then
-  echo "docker is not available yet" >&2
-  exit 1
+for attempt in $(seq 1 30); do
+  if docker info >/dev/null 2>&1; then
+    break
+  fi
+  if [[ "${attempt}" -eq 30 ]]; then
+    echo "docker is not available yet" >&2
+    exit 1
+  fi
+  sleep 2
+done
+
+OVERRIDE_FILE="/var/lib/glycoview-agent/traefik.override.yml"
+COMPOSE_ARGS=(--project-name "${STACK_NAME}" --env-file "${ENV_FILE}" -f "${STACK_FILE}")
+if [[ -f "${OVERRIDE_FILE}" ]]; then
+  COMPOSE_ARGS+=(-f "${OVERRIDE_FILE}")
 fi
 
-docker compose --project-name "${STACK_NAME}" --env-file "${ENV_FILE}" -f "${STACK_FILE}" pull
-docker compose --project-name "${STACK_NAME}" --env-file "${ENV_FILE}" -f "${STACK_FILE}" up -d --remove-orphans
+if ! docker compose "${COMPOSE_ARGS[@]}" pull; then
+  echo "docker compose pull failed; continuing with local images if available" >&2
+fi
+docker compose "${COMPOSE_ARGS[@]}" up -d --remove-orphans

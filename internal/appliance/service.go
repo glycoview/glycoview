@@ -123,15 +123,48 @@ func NewService(cfg Config) *Service {
 func (s *Service) Providers() []TLSProvider {
 	return []TLSProvider{
 		{
-			ID:    "cloudflare",
-			Label: "Cloudflare",
+			ID:          "duckdns",
+			Label:       "DuckDNS (free, recommended for home users)",
+			Description: "Free dynamic DNS subdomain. No domain purchase required. Works behind home routers and CGNAT — no port forwarding needed.",
+			DocsURL:     "https://www.duckdns.org/",
+			Instructions: []string{
+				"Go to https://www.duckdns.org/ and sign in with Google, GitHub, Twitter, or Reddit.",
+				"Pick a subdomain (e.g. my-glycoview) — your full domain will be my-glycoview.duckdns.org.",
+				"Copy the token shown at the top of the DuckDNS page.",
+				"Back here, set the Domain field to your full *.duckdns.org name and paste the token below.",
+				"No router changes required. DuckDNS and Let's Encrypt handle validation over the internet.",
+			},
 			Fields: []TLSField{
-				{Key: "CF_DNS_API_TOKEN", Label: "API token", Secret: true},
+				{Key: "DUCKDNS_TOKEN", Label: "DuckDNS token", Secret: true, Help: "Found at the top of www.duckdns.org after signing in."},
 			},
 		},
 		{
-			ID:    "route53",
-			Label: "Amazon Route53",
+			ID:          "cloudflare",
+			Label:       "Cloudflare",
+			Description: "Use if you already have a domain managed by Cloudflare. No port forwarding required.",
+			DocsURL:     "https://dash.cloudflare.com/profile/api-tokens",
+			Instructions: []string{
+				"Add your domain to Cloudflare (free plan is fine) and let nameservers propagate.",
+				"Go to https://dash.cloudflare.com/profile/api-tokens and click \"Create Token\".",
+				"Use the \"Edit zone DNS\" template, scope it to the specific zone you want to use.",
+				"Copy the generated token and paste it below.",
+				"No router changes required — DNS-01 validation happens over the Cloudflare API.",
+			},
+			Fields: []TLSField{
+				{Key: "CF_DNS_API_TOKEN", Label: "API token", Secret: true, Help: "Must have Zone:DNS:Edit permission on the target zone."},
+			},
+		},
+		{
+			ID:          "route53",
+			Label:       "Amazon Route53",
+			Description: "For domains managed in AWS Route53.",
+			DocsURL:     "https://docs.aws.amazon.com/IAM/latest/UserGuide/id_credentials_access-keys.html",
+			Instructions: []string{
+				"In AWS IAM, create a user with programmatic access.",
+				"Attach a policy allowing route53:ChangeResourceRecordSets and route53:ListHostedZonesByName on your hosted zone.",
+				"Create an access key for that user and paste the ID and secret below.",
+				"Set the region to the AWS region used for your account (e.g. eu-central-1 or us-east-1).",
+			},
 			Fields: []TLSField{
 				{Key: "AWS_ACCESS_KEY_ID", Label: "Access key ID"},
 				{Key: "AWS_SECRET_ACCESS_KEY", Label: "Secret access key", Secret: true},
@@ -139,29 +172,55 @@ func (s *Service) Providers() []TLSProvider {
 			},
 		},
 		{
-			ID:    "hetzner",
-			Label: "Hetzner DNS",
+			ID:          "hetzner",
+			Label:       "Hetzner DNS",
+			Description: "For domains managed in Hetzner DNS Console.",
+			DocsURL:     "https://dns.hetzner.com/settings/api-token",
+			Instructions: []string{
+				"Go to https://dns.hetzner.com/settings/api-token and create a new API access token.",
+				"Copy it and paste it below. The token has full DNS control — protect it.",
+			},
 			Fields: []TLSField{
 				{Key: "HETZNER_API_KEY", Label: "API key", Secret: true},
 			},
 		},
 		{
-			ID:    "digitalocean",
-			Label: "DigitalOcean",
+			ID:          "digitalocean",
+			Label:       "DigitalOcean",
+			Description: "For domains managed in DigitalOcean.",
+			DocsURL:     "https://cloud.digitalocean.com/account/api/tokens",
+			Instructions: []string{
+				"Go to https://cloud.digitalocean.com/account/api/tokens and generate a new Personal Access Token.",
+				"Give it Write scope (required to update DNS records).",
+				"Paste the token below.",
+			},
 			Fields: []TLSField{
 				{Key: "DO_AUTH_TOKEN", Label: "API token", Secret: true},
 			},
 		},
 		{
-			ID:    "gandi",
-			Label: "Gandi v5",
+			ID:          "gandi",
+			Label:       "Gandi v5",
+			Description: "For domains managed at Gandi using the v5 LiveDNS API.",
+			DocsURL:     "https://account.gandi.net/",
+			Instructions: []string{
+				"Sign in at https://account.gandi.net/ and open Security → API key.",
+				"Generate a v5 LiveDNS API key (not the legacy v4 key) and paste it below.",
+			},
 			Fields: []TLSField{
 				{Key: "GANDIV5_API_KEY", Label: "API key", Secret: true},
 			},
 		},
 		{
-			ID:    "ovh",
-			Label: "OVH",
+			ID:          "ovh",
+			Label:       "OVH",
+			Description: "For domains managed at OVH. Uses OVH's application-key scheme.",
+			DocsURL:     "https://eu.api.ovh.com/createApp/",
+			Instructions: []string{
+				"Create an OVH application at https://eu.api.ovh.com/createApp/ (or the regional equivalent).",
+				"Use the generated app key + secret to obtain a consumer key with DNS write scope on your zone.",
+				"Set Endpoint to ovh-eu, ovh-ca, or ovh-us depending on your account region.",
+			},
 			Fields: []TLSField{
 				{Key: "OVH_ENDPOINT", Label: "Endpoint", Placeholder: "ovh-eu"},
 				{Key: "OVH_APPLICATION_KEY", Label: "Application key", Secret: true},
@@ -172,13 +231,60 @@ func (s *Service) Providers() []TLSProvider {
 	}
 }
 
+func (s *Service) ChallengeOptions() []ChallengeOption {
+	return []ChallengeOption{
+		{
+			ID:          "dns-01",
+			Label:       "DNS-01 (recommended)",
+			Description: "No port forwarding required. Works behind home routers and CGNAT. Requires a DNS provider API token.",
+			Recommended: true,
+			Instructions: []string{
+				"Pick this if you are on a home internet connection (most users).",
+				"Your Pi does not need to be reachable from the internet for certificate issuance.",
+				"Trio will connect to your domain once DNS points at the Pi's LAN IP or its dynamic-DNS hostname.",
+			},
+		},
+		{
+			ID:          "http-01",
+			Label:       "HTTP-01",
+			Description: "Simpler, but requires the Pi to be reachable on TCP port 80 from the public internet.",
+			Instructions: []string{
+				"On your router, forward external TCP port 80 to the Pi's LAN IP, port 80.",
+				"Also forward external TCP port 443 so Trio can reach your server on HTTPS.",
+				"Your domain's A record must point to your public IP (use DuckDNS or a dynamic DNS service if your IP changes).",
+				"Do not pick this if your ISP blocks inbound port 80 (common with many European ISPs and any CGNAT).",
+			},
+		},
+	}
+}
+
 func (s *Service) DynamicDNSProviders() []DynamicDNSProvider {
 	return []DynamicDNSProvider{
 		{
-			ID:    "cloudflare",
-			Label: "Cloudflare",
+			ID:          "duckdns",
+			Label:       "DuckDNS",
+			Description: "Keeps your *.duckdns.org hostname pointed at the Pi's current public IP.",
+			DocsURL:     "https://www.duckdns.org/",
+			Instructions: []string{
+				"Use the same DuckDNS token you used for the TLS step.",
+				"Enter your full hostname (e.g. my-glycoview.duckdns.org) in the domain/record field.",
+				"GlycoView will update the DuckDNS record automatically when your home IP changes.",
+			},
 			Fields: []TLSField{
-				{Key: "CF_DNS_API_TOKEN", Label: "API token", Secret: true},
+				{Key: "DUCKDNS_TOKEN", Label: "DuckDNS token", Secret: true, Help: "Same token shown at the top of www.duckdns.org."},
+			},
+		},
+		{
+			ID:          "cloudflare",
+			Label:       "Cloudflare",
+			Description: "Keeps an A record in Cloudflare pointed at the Pi's current public IP.",
+			DocsURL:     "https://dash.cloudflare.com/profile/api-tokens",
+			Instructions: []string{
+				"Create a Cloudflare API token with Zone:DNS:Edit scoped to the zone you want to update.",
+				"Set Zone to your root domain (e.g. example.com) and Record name to the full hostname (e.g. pi.example.com).",
+			},
+			Fields: []TLSField{
+				{Key: "CF_DNS_API_TOKEN", Label: "API token", Secret: true, Help: "Must have Zone:DNS:Edit on the target zone."},
 			},
 		},
 	}
@@ -654,7 +760,7 @@ func (s *Service) deployStack(ctx context.Context, env map[string]string) error 
 
 	args := []string{"compose", "--project-name", s.cfg.StackName, "--env-file", s.cfg.StackEnvFile, "-f", s.cfg.StackFile}
 	if _, err := os.Stat(s.cfg.OverrideFile); err == nil {
-		args = append(args, "-c", s.cfg.OverrideFile)
+		args = append(args, "-f", s.cfg.OverrideFile)
 	}
 	if _, err := s.runner.Run(ctx, env, "docker", append(args, "pull")...); err != nil {
 		return err
@@ -767,38 +873,37 @@ func (s *Service) writeOverride(cfg TLSConfig) error {
 	if err := os.MkdirAll(filepath.Dir(s.cfg.OverrideFile), 0o755); err != nil {
 		return err
 	}
-	command := []string{
-		"      - --certificatesresolvers.letsencrypt.acme.email=${LETSENCRYPT_EMAIL}",
-		"      - --certificatesresolvers.letsencrypt.acme.storage=/data/acme.json",
+
+	envLines := []string{
+		"      TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL: ${LETSENCRYPT_EMAIL}",
+		"      TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_STORAGE: /data/acme.json",
 	}
-	environmentLines := []string{}
 	switch cfg.ChallengeType {
 	case "dns-01":
-		command = append(command,
-			"      - --certificatesresolvers.letsencrypt.acme.dnschallenge.provider=${GLYCOVIEW_ACME_DNS_PROVIDER}",
-			"      - --certificatesresolvers.letsencrypt.acme.dnschallenge.delaybeforecheck=10",
+		envLines = append(envLines,
+			"      TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_DNSCHALLENGE_PROVIDER: ${GLYCOVIEW_ACME_DNS_PROVIDER}",
+			"      TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_DNSCHALLENGE_DELAYBEFORECHECK: \"10\"",
+			"      TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_HTTPCHALLENGE_ENTRYPOINT: \"\"",
 		)
-		keys := make([]string, 0, len(cfg.Env))
+		providerKeys := make([]string, 0, len(cfg.Env))
 		for key := range cfg.Env {
-			keys = append(keys, key)
+			providerKeys = append(providerKeys, key)
 		}
-		sort.Strings(keys)
-		for _, key := range keys {
-			environmentLines = append(environmentLines, fmt.Sprintf("      %s: ${%s}", key, key))
+		sort.Strings(providerKeys)
+		for _, key := range providerKeys {
+			envLines = append(envLines, fmt.Sprintf("      %s: ${%s}", key, key))
 		}
 	default:
-		command = append(command, "      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web")
+		envLines = append(envLines,
+			"      TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_HTTPCHALLENGE_ENTRYPOINT: web",
+			"      TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_DNSCHALLENGE: \"\"",
+		)
 	}
 
 	builder := strings.Builder{}
-	builder.WriteString("version: \"3.9\"\n\nservices:\n  traefik:\n    command:\n")
-	builder.WriteString(strings.Join(command, "\n"))
+	builder.WriteString("services:\n  traefik:\n    environment:\n")
+	builder.WriteString(strings.Join(envLines, "\n"))
 	builder.WriteString("\n")
-	if len(environmentLines) > 0 {
-		builder.WriteString("    environment:\n")
-		builder.WriteString(strings.Join(environmentLines, "\n"))
-		builder.WriteString("\n")
-	}
 	return os.WriteFile(s.cfg.OverrideFile, []byte(builder.String()), 0o600)
 }
 
@@ -831,9 +936,56 @@ func (s *Service) updateDynamicDNSRecord(ctx context.Context, cfg DynamicDNSConf
 	switch cfg.Provider {
 	case "cloudflare":
 		return s.updateCloudflareRecord(ctx, cfg, ip)
+	case "duckdns":
+		return s.updateDuckDNSRecord(ctx, cfg, ip)
 	default:
 		return fmt.Errorf("dynamic DNS provider %q is not implemented", cfg.Provider)
 	}
+}
+
+func (s *Service) updateDuckDNSRecord(ctx context.Context, cfg DynamicDNSConfig, ip string) error {
+	token := strings.TrimSpace(cfg.Env["DUCKDNS_TOKEN"])
+	if token == "" {
+		return errors.New("DUCKDNS_TOKEN is required")
+	}
+	subdomain := duckDNSSubdomain(cfg.RecordName)
+	if subdomain == "" {
+		return errors.New("recordName must be a .duckdns.org hostname (e.g. myname.duckdns.org)")
+	}
+	endpoint := "https://www.duckdns.org/update?domains=" + url.QueryEscape(subdomain) +
+		"&token=" + url.QueryEscape(token) + "&ip=" + url.QueryEscape(ip)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("User-Agent", "glycoview-agent")
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 64))
+	if err != nil {
+		return err
+	}
+	body := strings.TrimSpace(string(data))
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 || body != "OK" {
+		return fmt.Errorf("duckdns update failed: status %d body %q", resp.StatusCode, body)
+	}
+	return nil
+}
+
+func duckDNSSubdomain(record string) string {
+	name := strings.TrimSpace(strings.ToLower(record))
+	name = strings.TrimSuffix(name, ".")
+	name = strings.TrimSuffix(name, ".duckdns.org")
+	if name == "" || strings.ContainsAny(name, "/ ") {
+		return ""
+	}
+	if idx := strings.LastIndex(name, "."); idx >= 0 {
+		name = name[idx+1:]
+	}
+	return name
 }
 
 func (s *Service) updateCloudflareRecord(ctx context.Context, cfg DynamicDNSConfig, ip string) error {

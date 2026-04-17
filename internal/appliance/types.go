@@ -7,18 +7,33 @@ type TLSField struct {
 	Label       string `json:"label"`
 	Placeholder string `json:"placeholder,omitempty"`
 	Secret      bool   `json:"secret,omitempty"`
+	Help        string `json:"help,omitempty"`
 }
 
 type TLSProvider struct {
-	ID     string     `json:"id"`
-	Label  string     `json:"label"`
-	Fields []TLSField `json:"fields,omitempty"`
+	ID           string     `json:"id"`
+	Label        string     `json:"label"`
+	Description  string     `json:"description,omitempty"`
+	Instructions []string   `json:"instructions,omitempty"`
+	DocsURL      string     `json:"docsUrl,omitempty"`
+	Fields       []TLSField `json:"fields,omitempty"`
 }
 
 type DynamicDNSProvider struct {
-	ID     string     `json:"id"`
-	Label  string     `json:"label"`
-	Fields []TLSField `json:"fields,omitempty"`
+	ID           string     `json:"id"`
+	Label        string     `json:"label"`
+	Description  string     `json:"description,omitempty"`
+	Instructions []string   `json:"instructions,omitempty"`
+	DocsURL      string     `json:"docsUrl,omitempty"`
+	Fields       []TLSField `json:"fields,omitempty"`
+}
+
+type ChallengeOption struct {
+	ID           string   `json:"id"`
+	Label        string   `json:"label"`
+	Description  string   `json:"description,omitempty"`
+	Instructions []string `json:"instructions,omitempty"`
+	Recommended  bool     `json:"recommended,omitempty"`
 }
 
 type TLSConfig struct {

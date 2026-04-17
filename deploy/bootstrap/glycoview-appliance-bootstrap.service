@@ -1,13 +1,16 @@
 [Unit]
 Description=GlycoView appliance bootstrap
 After=network-online.target docker.service
-Wants=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
 EnvironmentFile=-/opt/glycoview/stack/.env
 ExecStart=/opt/glycoview/bootstrap/bootstrap.sh
+Restart=on-failure
+RestartSec=30s
 
 [Install]
 WantedBy=multi-user.target

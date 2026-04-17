@@ -61,7 +61,10 @@ func main() {
 		writeResponse(w, result, err)
 	}))
 	mux.HandleFunc("/v1/tls/providers", methodHandler(http.MethodGet, func(w http.ResponseWriter, r *http.Request) {
-		httpx.WriteJSON(w, http.StatusOK, map[string]any{"providers": service.Providers()})
+		httpx.WriteJSON(w, http.StatusOK, map[string]any{
+			"providers":  service.Providers(),
+			"challenges": service.ChallengeOptions(),
+		})
 	}))
 	mux.HandleFunc("/v1/tls/config", methodHandler(http.MethodGet, func(w http.ResponseWriter, r *http.Request) {
 		body, err := service.TLSConfig(r.Context())
