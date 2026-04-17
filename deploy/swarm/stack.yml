@@ -9,9 +9,6 @@ services:
       - --providers.docker.exposedbydefault=false
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
-      - --certificatesresolvers.letsencrypt.acme.email=${LETSENCRYPT_EMAIL:-admin@example.com}
-      - --certificatesresolvers.letsencrypt.acme.storage=/data/acme.json
-      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web
     environment:
       DOCKER_API_VERSION: "1.44"
     ports:
@@ -93,14 +90,13 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /opt/glycoview/stack:/opt/glycoview/stack
-      - glycoview_agent_state:/var/lib/glycoview-agent
+      - /var/lib/glycoview-agent:/var/lib/glycoview-agent
     networks:
       - control
 
 volumes:
   postgres_data:
   traefik_acme:
-  glycoview_agent_state:
 
 networks:
   edge:

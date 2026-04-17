@@ -9,6 +9,7 @@ ENV_EXAMPLE_FILE="${STACK_DIR}/stack/.env.example"
 BOOT_ENV_FILE="/boot/firmware/glycoview-firstboot.env"
 
 mkdir -p "${STACK_DIR}/stack"
+mkdir -p /var/lib/glycoview-agent
 
 if [[ ! -f "${ENV_FILE}" ]]; then
   if [[ -f "${BOOT_ENV_FILE}" ]]; then

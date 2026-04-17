@@ -435,7 +435,7 @@ func (s *Service) ConfigureTLS(ctx context.Context, cfg TLSConfig) (ActionRespon
 	if err := s.writeOverride(cfg); err != nil {
 		return ActionResponse{}, err
 	}
-	if err := s.deployStack(ctx, env); err != nil {
+	if err := s.deployStack(ctx, env, "traefik", "glycoview"); err != nil {
 		state.Update.LastAction = "tls-configure"
 		state.Update.LastMessage = err.Error()
 		state.Update.LastActionAt = s.now()
@@ -900,16 +900,23 @@ func (s *Service) writeOverride(cfg TLSConfig) error {
 		return err
 	}
 
+	commandLines := []string{
+		"      - --providers.docker=true",
+		"      - --providers.docker.exposedbydefault=false",
+		"      - --entrypoints.web.address=:80",
+		"      - --entrypoints.websecure.address=:443",
+		"      - --certificatesresolvers.letsencrypt.acme.email=${LETSENCRYPT_EMAIL}",
+		"      - --certificatesresolvers.letsencrypt.acme.storage=/data/acme.json",
+	}
 	envLines := []string{
-		"      TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_EMAIL: ${LETSENCRYPT_EMAIL}",
-		"      TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_STORAGE: /data/acme.json",
+		"      DOCKER_API_VERSION: \"1.44\"",
 	}
 	switch cfg.ChallengeType {
 	case "dns-01":
-		envLines = append(envLines,
-			"      TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_DNSCHALLENGE_PROVIDER: ${GLYCOVIEW_ACME_DNS_PROVIDER}",
-			"      TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_DNSCHALLENGE_DELAYBEFORECHECK: \"10\"",
-			"      TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_HTTPCHALLENGE_ENTRYPOINT: \"\"",
+		commandLines = append(commandLines,
+			"      - --certificatesresolvers.letsencrypt.acme.dnschallenge=true",
+			"      - --certificatesresolvers.letsencrypt.acme.dnschallenge.provider=${GLYCOVIEW_ACME_DNS_PROVIDER}",
+			"      - --certificatesresolvers.letsencrypt.acme.dnschallenge.delaybeforecheck=10",
 		)
 		providerKeys := make([]string, 0, len(cfg.Env))
 		for key := range cfg.Env {
@@ -920,14 +927,15 @@ func (s *Service) writeOverride(cfg TLSConfig) error {
 			envLines = append(envLines, fmt.Sprintf("      %s: ${%s}", key, key))
 		}
 	default:
-		envLines = append(envLines,
-			"      TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_HTTPCHALLENGE_ENTRYPOINT: web",
-			"      TRAEFIK_CERTIFICATESRESOLVERS_LETSENCRYPT_ACME_DNSCHALLENGE: \"\"",
+		commandLines = append(commandLines,
+			"      - --certificatesresolvers.letsencrypt.acme.httpchallenge.entrypoint=web",
 		)
 	}
 
 	builder := strings.Builder{}
-	builder.WriteString("services:\n  traefik:\n    environment:\n")
+	builder.WriteString("services:\n  traefik:\n    command:\n")
+	builder.WriteString(strings.Join(commandLines, "\n"))
+	builder.WriteString("\n    environment:\n")
 	builder.WriteString(strings.Join(envLines, "\n"))
 	builder.WriteString("\n")
 	return os.WriteFile(s.cfg.OverrideFile, []byte(builder.String()), 0o600)
