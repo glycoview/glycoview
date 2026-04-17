@@ -767,6 +767,13 @@ func (s *Service) deployStack(ctx context.Context, env map[string]string, servic
 		return err
 	}
 
+	// Detach from the caller's context. A deploy that recreates the glycoview
+	// container also kills the HTTP connection that initiated the call, which
+	// would otherwise cancel this context and leave compose half-finished.
+	detached, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Minute)
+	defer cancel()
+	ctx = detached
+
 	args := []string{"compose", "--project-name", s.cfg.StackName, "--env-file", s.cfg.StackEnvFile, "-f", s.cfg.StackFile}
 	if _, err := os.Stat(s.cfg.OverrideFile); err == nil {
 		args = append(args, "-f", s.cfg.OverrideFile)

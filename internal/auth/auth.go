@@ -106,13 +106,18 @@ func (m *Manager) UpdateAPISecret(apiSecret string) {
 }
 
 func (m *Manager) IssueJWT(accessToken string) (string, error) {
-	m.mu.RLock()
-	subject, ok := m.subjects[accessToken]
-	m.mu.RUnlock()
-	if !ok {
-		return "", errors.New("unknown access token")
+	var identity Identity
+	if accessToken == m.apiSecret || accessToken == m.apiSecretSHA {
+		identity = m.identityForRoles("api-secret", []string{"admin"}, false)
+	} else {
+		m.mu.RLock()
+		subject, ok := m.subjects[accessToken]
+		m.mu.RUnlock()
+		if !ok {
+			return "", errors.New("unknown access token")
+		}
+		identity = m.identityForSubject(subject, false)
 	}
-	identity := m.identityForSubject(subject, false)
 	claims := jwt.MapClaims{
 		"accessToken": accessToken,
 		"sub":         identity.Name,
@@ -223,6 +228,10 @@ func (m *Manager) authenticateJWT(tokenString string) (*Identity, error) {
 		return nil, ErrBadJWT
 	}
 	accessToken, _ := claims["accessToken"].(string)
+	if accessToken == m.apiSecret || accessToken == m.apiSecretSHA {
+		identity := m.identityForRoles("api-secret", []string{"admin"}, false)
+		return &identity, nil
+	}
 	m.mu.RLock()
 	subject, ok := m.subjects[accessToken]
 	m.mu.RUnlock()
