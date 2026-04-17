@@ -1,11 +1,7 @@
 package api
 
 import (
-	"bytes"
-	"io"
-	"log"
 	"net/http"
-	"strings"
 
 	nsv1 "github.com/glycoview/nightscout-api/api/v1"
 	nsv3 "github.com/glycoview/nightscout-api/api/v3"
@@ -21,34 +17,6 @@ import (
 	"github.com/glycoview/glycoview/internal/store"
 	"github.com/glycoview/glycoview/internal/ui"
 )
-
-func apiDebugLogger(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !strings.HasPrefix(r.URL.Path, "/api/") || r.Method == http.MethodGet || r.Method == http.MethodOptions {
-			next.ServeHTTP(w, r)
-			return
-		}
-		body, _ := io.ReadAll(io.LimitReader(r.Body, 32*1024))
-		_ = r.Body.Close()
-		r.Body = io.NopCloser(bytes.NewReader(body))
-		rec := &statusRecorder{ResponseWriter: w, status: 200}
-		next.ServeHTTP(rec, r)
-		if rec.status >= 400 {
-			ct := r.Header.Get("Content-Type")
-			log.Printf("api %s %s -> %d ct=%q body=%q", r.Method, r.URL.RequestURI(), rec.status, ct, string(body))
-		}
-	})
-}
-
-type statusRecorder struct {
-	http.ResponseWriter
-	status int
-}
-
-func (s *statusRecorder) WriteHeader(code int) {
-	s.status = code
-	s.ResponseWriter.WriteHeader(code)
-}
 
 type Server struct {
 	Config  config.Config
@@ -77,7 +45,6 @@ func (s *Server) routes() http.Handler {
 		AllowCredentials: false,
 		MaxAge:           300,
 	}))
-	r.Use(apiDebugLogger)
 	nsdep := nsdeps.Dependencies{
 		Config: nsconfig.Config{
 			APISecret:    s.Config.APISecret,
