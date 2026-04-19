@@ -29,6 +29,7 @@ type EventPoint struct {
 	Label    string  `json:"label"`
 	Kind     string  `json:"kind"`
 	Value    float64 `json:"value"`
+	Duration int     `json:"duration,omitempty"`
 	Subtitle string  `json:"subtitle,omitempty"`
 }
 
@@ -75,6 +76,10 @@ type DailyResponse struct {
 	Glucose      []GlucosePoint    `json:"glucose"`
 	Carbs        []EventPoint      `json:"carbs"`
 	Insulin      []EventPoint      `json:"insulin"`
+	Boluses      []EventPoint      `json:"boluses"`
+	SMBs         []EventPoint      `json:"smbs"`
+	TempBasals   []EventPoint      `json:"tempBasals"`
+	SMBGs        []EventPoint      `json:"smbgs"`
 	BasalProfile []EventPoint      `json:"basalProfile"`
 	TimeInRange  []TimeInRangeBand `json:"timeInRange"`
 	Metrics      []Metric          `json:"metrics"`

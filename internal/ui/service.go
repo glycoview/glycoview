@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/glycoview/glycoview/internal/config"
+	"github.com/glycoview/glycoview/internal/model"
 	"github.com/glycoview/glycoview/internal/store"
 )
 
@@ -84,7 +85,7 @@ func (s Service) Daily(ctx context.Context, day time.Time) (DailyResponse, error
 	profile, _ := s.latestProfile(ctx)
 
 	samples := glucoseSamples(entries)
-	carbs, insulinEvents := splitTreatmentEvents(treatments)
+	split := splitTreatments(treatments)
 	totalCarbs, totalInsulin := totalsFromTreatments(treatments)
 
 	return DailyResponse{
@@ -94,9 +95,13 @@ func (s Service) Daily(ctx context.Context, day time.Time) (DailyResponse, error
 		RangeStart:   start.UnixMilli(),
 		RangeEnd:     end.UnixMilli(),
 		Glucose:      samples,
-		Carbs:        carbs,
-		Insulin:      insulinEvents,
-		BasalProfile: buildBasalProfile(profile, start),
+		Carbs:        split.Carbs,
+		Insulin:      split.Insulin,
+		Boluses:      split.Boluses,
+		SMBs:         split.SMBs,
+		TempBasals:   split.TempBasals,
+		SMBGs:        split.SMBGs,
+		BasalProfile: buildBasalProfile(profile, start, statuses),
 		TimeInRange:  timeInRange(samples),
 		Metrics: []Metric{
 			{ID: "avg", Label: "Average glucose", Value: fmt.Sprintf("%.0f mg/dL", averageGlucose(samples)), Accent: "cool"},
@@ -142,28 +147,137 @@ func (s Service) Trends(ctx context.Context, now time.Time, days int) (TrendsRes
 }
 
 func (s Service) Profile(ctx context.Context) (ProfileResponse, error) {
-	profile, err := s.latestProfile(ctx)
-	if err != nil {
+	profile, _ := s.latestProfile(ctx)
+	hasProfile := profile.Identifier() != ""
+
+	now := time.Now().UTC()
+	statuses, _ := s.loadStatuses(ctx, now.Add(-24*time.Hour), now)
+
+	if hasProfile {
 		return ProfileResponse{
-			GeneratedAt: time.Now().UnixMilli(),
-			PatientName: "GlycoView Patient",
-			Headline:    "No therapy profile is available yet",
+			GeneratedAt:   time.Now().UnixMilli(),
+			PatientName:   patientName(profile),
+			Headline:      profileHeadline(profile),
+			Metrics:       buildProfileMetrics(profile),
+			BasalSchedule: profileSchedule(profile, "basal"),
+			CarbRatios:    profileSchedule(profile, "carbratio"),
+			Sensitivity:   profileSchedule(profile, "sens"),
+			Targets:       profileTargets(profile),
+			Notes: []ActivityItem{
+				{Title: "Therapy profile", Detail: "Latest profile imported from Nightscout-compatible storage", Kind: "profile", Accent: "blue"},
+			},
 		}, nil
 	}
-	return ProfileResponse{
-		GeneratedAt:   time.Now().UnixMilli(),
-		PatientName:   patientName(profile),
-		Headline:      profileHeadline(profile),
-		Metrics:       buildProfileMetrics(profile),
-		BasalSchedule: profileSchedule(profile, "basal"),
-		CarbRatios:    profileSchedule(profile, "carbratio"),
-		Sensitivity:   profileSchedule(profile, "sens"),
-		Targets:       profileTargets(profile),
-		Notes: []ActivityItem{
-			{Title: "Therapy profile", Detail: "Latest profile imported from Nightscout-compatible storage", Kind: "profile", Accent: "blue"},
-			{Title: "Clinical note", Detail: "This view is intended for review. Editing workflows should remain explicit and auditable.", Kind: "note", Accent: "violet"},
+
+	// No Nightscout profile record — Trio/OpenAPS deployments don't always
+	// upload one. Derive what we can from the latest pump-loop status.
+	return deriveProfileFromStatuses(statuses), nil
+}
+
+func deriveProfileFromStatuses(statuses []model.Record) ProfileResponse {
+	now := time.Now().UnixMilli()
+	resp := ProfileResponse{
+		GeneratedAt: now,
+		PatientName: "Appliance owner",
+		Headline:    "Derived from loop status — no Nightscout profile uploaded",
+	}
+	if len(statuses) == 0 {
+		resp.Headline = "Waiting for pump loop data"
+		return resp
+	}
+
+	// Pick the most recent status with an openaps payload.
+	var latest model.Record
+	for i := len(statuses) - 1; i >= 0; i-- {
+		if model.PathValue(statuses[i].Data, "openaps") != nil {
+			latest = statuses[i]
+			break
+		}
+	}
+	if latest.Identifier() == "" {
+		latest = statuses[len(statuses)-1]
+	}
+
+	source := model.PathValue(latest.Data, "openaps.suggested")
+	if _, ok := source.(map[string]any); !ok {
+		source = model.PathValue(latest.Data, "openaps.enacted")
+	}
+	sourceMap, _ := source.(map[string]any)
+
+	device, _ := model.StringField(latest.Data, "device")
+	if device == "" {
+		device = "Pump loop"
+	}
+	resp.Headline = device + " · live therapy settings"
+
+	metricFor := func(id, label, path, unit string, precision int) (Metric, bool) {
+		value, ok := floatValue(model.PathValue(sourceMap, path))
+		if !ok {
+			return Metric{}, false
+		}
+		format := "%." + strconv.Itoa(precision) + "f"
+		text := fmt.Sprintf(format, value)
+		if unit != "" {
+			text = text + " " + unit
+		}
+		return Metric{ID: id, Label: label, Value: text, Accent: "cool"}, true
+	}
+	metrics := make([]Metric, 0, 8)
+	if m, ok := metricFor("tdd", "TDD (loop)", "TDD", "U", 1); ok {
+		metrics = append(metrics, m)
+	}
+	if m, ok := metricFor("cr", "Carb ratio", "CR", "g/U", 0); ok {
+		metrics = append(metrics, m)
+	}
+	if m, ok := metricFor("isf", "Sensitivity", "ISF", "mg/dL/U", 0); ok {
+		metrics = append(metrics, m)
+	}
+	if m, ok := metricFor("target", "Target", "current_target", "mg/dL", 0); ok {
+		metrics = append(metrics, m)
+	}
+	if m, ok := metricFor("iob", "IOB", "IOB", "U", 2); ok {
+		metrics = append(metrics, m)
+	}
+	if m, ok := metricFor("cob", "COB", "COB", "g", 0); ok {
+		metrics = append(metrics, m)
+	}
+	if reservoir, ok := floatValue(model.PathValue(latest.Data, "pump.reservoir")); ok {
+		metrics = append(metrics, Metric{ID: "reservoir", Label: "Reservoir", Value: fmt.Sprintf("%.1f U", reservoir), Accent: "blue"})
+	}
+	resp.Metrics = metrics
+
+	// Single-point "schedules" built from whatever scalar values we have.
+	pointOrNil := func(value any, format string) []SchedulePoint {
+		f, ok := floatValue(value)
+		if !ok {
+			return nil
+		}
+		return []SchedulePoint{{Time: "00:00", Value: fmt.Sprintf(format, f)}}
+	}
+	if rate, ok := floatValue(model.PathValue(latest.Data, "openaps.enacted.rate")); ok {
+		resp.BasalSchedule = []SchedulePoint{{Time: "00:00", Value: fmt.Sprintf("%.2f U/h", rate)}}
+	}
+	if rows := pointOrNil(model.PathValue(sourceMap, "CR"), "1:%.0f"); rows != nil {
+		resp.CarbRatios = rows
+	}
+	if rows := pointOrNil(model.PathValue(sourceMap, "ISF"), "%.0f mg/dL/U"); rows != nil {
+		resp.Sensitivity = rows
+	}
+	if rows := pointOrNil(model.PathValue(sourceMap, "current_target"), "%.0f mg/dL"); rows != nil {
+		resp.Targets = rows
+	}
+
+	resp.Notes = []ActivityItem{
+		{
+			At:     latest.SrvModified,
+			Title:  "Derived from pump loop",
+			Detail: fmt.Sprintf("Values taken from the latest %s status — upload a Nightscout profile to override.", device),
+			Kind:   "profile",
+			Accent: "violet",
 		},
-	}, nil
+	}
+
+	return resp
 }
 
 func (s Service) Devices(ctx context.Context, now time.Time) (DevicesResponse, error) {

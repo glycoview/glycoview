@@ -2,12 +2,15 @@ package ui
 
 import (
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/glycoview/glycoview/internal/model"
 )
+
+func sortFloats(values []float64) { sort.Float64s(values) }
 
 func patientName(profile model.Record) string {
 	for _, field := range []string{"patient.name", "name", "patient.fullName"} {
@@ -23,7 +26,7 @@ func patientName(profile model.Record) string {
 	return "GlycoView Patient"
 }
 
-func buildBasalProfile(profile model.Record, day time.Time) []EventPoint {
+func buildBasalProfile(profile model.Record, day time.Time, statuses []model.Record) []EventPoint {
 	points := make([]EventPoint, 0)
 	schedule := scheduleSlice(profile, "basal")
 	base := time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, time.UTC)
@@ -32,7 +35,34 @@ func buildBasalProfile(profile model.Record, day time.Time) []EventPoint {
 		value, _ := floatValue(item.Value)
 		points = append(points, EventPoint{At: at.UnixMilli(), Label: "Basal", Kind: "basal", Value: value, Subtitle: item.Time})
 	}
+	// Fallback: if no profile schedule, expose a single flat rate derived
+	// from the median of the day's openaps-enacted temp basals. This gives the
+	// chart something sensible to draw when Nightscout has no profile record.
+	if len(points) == 0 && len(statuses) > 0 {
+		if rate, ok := medianEnactedRate(statuses); ok {
+			points = append(points, EventPoint{At: base.UnixMilli(), Label: "Basal", Kind: "basal", Value: rate, Subtitle: "derived"})
+		}
+	}
 	return points
+}
+
+func medianEnactedRate(statuses []model.Record) (float64, bool) {
+	rates := make([]float64, 0, len(statuses))
+	for _, record := range statuses {
+		if rate, ok := floatValue(model.PathValue(record.Data, "openaps.enacted.rate")); ok && rate >= 0 {
+			rates = append(rates, rate)
+		}
+	}
+	if len(rates) == 0 {
+		return 0, false
+	}
+	return percentile(sortedFloats(rates), 50), true
+}
+
+func sortedFloats(values []float64) []float64 {
+	out := append([]float64(nil), values...)
+	sortFloats(out)
+	return out
 }
 
 func profileHeadline(profile model.Record) string {
