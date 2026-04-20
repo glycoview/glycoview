@@ -64,18 +64,31 @@ func (s *Service) RunChat(ctx context.Context, req ChatRequest, emit Emit) error
 	if err != nil {
 		return fmt.Errorf("load ai settings: %w", err)
 	}
-	if strings.TrimSpace(settings.APIKey) == "" {
-		return errors.New("no Ollama API key configured — set one in AI → Settings first")
+	if strings.TrimSpace(settings.BaseURL) == "" {
+		return errors.New("no AI endpoint configured — set one in AI → Settings first")
 	}
 	model := settings.Model
 	if strings.TrimSpace(req.Model) != "" {
 		model = req.Model
 	}
 
-	client := openai.NewClient(
-		option.WithAPIKey(settings.APIKey),
-		option.WithBaseURL(settings.BaseURL),
-	)
+	// Local Ollama servers don't require an API key. Only require one when
+	// talking to a URL that obviously needs auth (ollama.com, openai.com).
+	apiKey := strings.TrimSpace(settings.APIKey)
+	needsKey := requiresAuth(settings.BaseURL)
+	if apiKey == "" && needsKey {
+		return errors.New("this endpoint needs an API key — set one in AI → Settings first")
+	}
+
+	opts := []option.RequestOption{option.WithBaseURL(settings.BaseURL)}
+	if apiKey != "" {
+		opts = append(opts, option.WithAPIKey(apiKey))
+	} else {
+		// openai-go refuses to run without an API key unless we hand it one.
+		// A placeholder is fine — local Ollama ignores the header.
+		opts = append(opts, option.WithAPIKey("local-no-auth"))
+	}
+	client := openai.NewClient(opts...)
 
 	// Seed the conversation: system prompt + user/assistant history from caller.
 	messages := []openai.ChatCompletionMessageParamUnion{
@@ -193,6 +206,45 @@ func toolsForAPI() []openai.ChatCompletionToolUnionParam {
 		}))
 	}
 	return out
+}
+
+// requiresAuth returns true when the configured base URL obviously points at
+// a hosted service that needs Bearer auth. Local Ollama servers (any
+// RFC1918 / localhost hostnames) are treated as no-auth.
+func requiresAuth(baseURL string) bool {
+	lower := strings.ToLower(baseURL)
+	localMarkers := []string{
+		"://localhost",
+		"://127.",
+		"://0.0.0.0",
+		"://host.docker.internal",
+		"://192.168.",
+		"://10.",
+		"://172.16.",
+		"://172.17.",
+		"://172.18.",
+		"://172.19.",
+		"://172.20.",
+		"://172.21.",
+		"://172.22.",
+		"://172.23.",
+		"://172.24.",
+		"://172.25.",
+		"://172.26.",
+		"://172.27.",
+		"://172.28.",
+		"://172.29.",
+		"://172.30.",
+		"://172.31.",
+		"://glycoview.local",
+		".local:",
+	}
+	for _, m := range localMarkers {
+		if strings.Contains(lower, m) {
+			return false
+		}
+	}
+	return true
 }
 
 // convertMessage translates our JSON-friendly ChatMessage into one or more
