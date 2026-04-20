@@ -597,19 +597,42 @@ func (s *Service) CheckUpdate(ctx context.Context) (UpdateCheckResponse, error) 
 		return UpdateCheckResponse{}, err
 	}
 	currentTag := firstNonEmpty(env["GLYCOVIEW_TAG"], "latest")
-	latestTag, releaseURL, err := s.fetchLatestRelease(ctx)
-	if err != nil {
-		return UpdateCheckResponse{}, err
-	}
 
 	state, err := s.loadState()
 	if err != nil {
 		return UpdateCheckResponse{}, err
 	}
+
+	latestTag, releaseURL, checkErr := s.fetchLatestRelease(ctx)
+	if checkErr != nil {
+		// Fall back to the last successfully cached result. GitHub rate-limits
+		// unauthenticated requests to 60/hour/IP, which a home appliance can
+		// trip trivially. A stale-but-valid answer is strictly better than a
+		// 500 that takes out the Settings page.
+		state.Update.CurrentTag = currentTag
+		state.Update.CurrentAgentTag = firstNonEmpty(env["GLYCOVIEW_AGENT_TAG"], "latest")
+		state.Update.LastCheckError = checkErr.Error()
+		_ = s.saveState(state)
+		if state.Update.LastCheckedTag != "" {
+			return UpdateCheckResponse{
+				CurrentTag:      currentTag,
+				LatestTag:       state.Update.LastCheckedTag,
+				UpdateAvailable: state.Update.LastCheckedTag != "" && state.Update.LastCheckedTag != currentTag,
+				ReleaseURL:      state.Update.LastCheckedURL,
+				CheckedAt:       state.Update.LastCheckedAt,
+				Source:          "github-releases-cached",
+				Warning:         "Using cached release info: " + checkErr.Error(),
+			}, nil
+		}
+		return UpdateCheckResponse{}, checkErr
+	}
+
 	state.Update.CurrentTag = currentTag
 	state.Update.CurrentAgentTag = firstNonEmpty(env["GLYCOVIEW_AGENT_TAG"], "latest")
 	state.Update.LastCheckedTag = latestTag
+	state.Update.LastCheckedURL = releaseURL
 	state.Update.LastCheckedAt = s.now()
+	state.Update.LastCheckError = ""
 	_ = s.saveState(state)
 
 	return UpdateCheckResponse{

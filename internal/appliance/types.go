@@ -52,7 +52,9 @@ type UpdateState struct {
 	CurrentAgentTag  string    `json:"currentAgentTag,omitempty"`
 	PreviousAgentTag string    `json:"previousAgentTag,omitempty"`
 	LastCheckedTag   string    `json:"lastCheckedTag,omitempty"`
+	LastCheckedURL   string    `json:"lastCheckedURL,omitempty"`
 	LastCheckedAt    time.Time `json:"lastCheckedAt,omitempty"`
+	LastCheckError   string    `json:"lastCheckError,omitempty"`
 	LastAction       string    `json:"lastAction,omitempty"`
 	LastMessage      string    `json:"lastMessage,omitempty"`
 	LastActionAt     time.Time `json:"lastActionAt,omitempty"`
@@ -103,6 +105,7 @@ type UpdateCheckResponse struct {
 	ReleaseURL      string    `json:"releaseUrl,omitempty"`
 	CheckedAt       time.Time `json:"checkedAt"`
 	Source          string    `json:"source"`
+	Warning         string    `json:"warning,omitempty"`
 }
 
 type ApplyUpdateRequest struct {
