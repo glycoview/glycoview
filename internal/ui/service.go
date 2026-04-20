@@ -67,8 +67,13 @@ func (s Service) Overview(ctx context.Context, now time.Time, days int) (Overvie
 }
 
 func (s Service) Daily(ctx context.Context, day time.Time) (DailyResponse, error) {
-	day = day.UTC()
-	start := time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, time.UTC)
+	loc := day.Location()
+	if loc == nil {
+		loc = time.UTC
+	}
+	// Anchor start/end to local midnight in the caller's timezone so a
+	// Berlin user's 'today' covers local 00:00–24:00, not UTC 00:00–24:00.
+	start := time.Date(day.Year(), day.Month(), day.Day(), 0, 0, 0, 0, loc)
 	end := start.Add(24 * time.Hour)
 	entries, err := s.loadEntries(ctx, start, end)
 	if err != nil {

@@ -262,7 +262,8 @@ func NewRouter(dep Dependencies) http.Handler {
 			writeAppJSON(w, body, err)
 		}))
 		r.Get("/daily", authApp(dep.Auth, dep.AppAuth, func(w http.ResponseWriter, r *http.Request) {
-			day := parseDateParam(r.URL.Query().Get("date"), time.Now().UTC())
+			loc := parseTimeZone(r.URL.Query().Get("tz"))
+			day := parseDateParamInLocation(r.URL.Query().Get("date"), time.Now().In(loc), loc)
 			body, err := service.Daily(r.Context(), day)
 			writeAppJSON(w, body, err)
 		}))
@@ -366,14 +367,37 @@ func queryInt(r *http.Request, key string, fallback int) int {
 }
 
 func parseDateParam(value string, fallback time.Time) time.Time {
-	if value == "" {
-		return fallback
+	return parseDateParamInLocation(value, fallback, time.UTC)
+}
+
+// parseDateParamInLocation parses ?date=YYYY-MM-DD as local-midnight in the
+// given tz. Used so a Berlin user asking for /daily?date=2026-04-20 gets
+// local 00:00–24:00 instead of the UTC day which starts at 02:00 local.
+func parseDateParamInLocation(value string, fallback time.Time, loc *time.Location) time.Time {
+	if loc == nil {
+		loc = time.UTC
 	}
-	parsed, err := time.Parse("2006-01-02", value)
+	if value == "" {
+		return fallback.In(loc)
+	}
+	parsed, err := time.ParseInLocation("2006-01-02", value, loc)
 	if err != nil {
-		return fallback
+		return fallback.In(loc)
 	}
 	return parsed
+}
+
+// parseTimeZone loads an IANA timezone name (e.g. Europe/Berlin) with a UTC
+// fallback if the name is empty or invalid.
+func parseTimeZone(name string) *time.Location {
+	name = strings.TrimSpace(name)
+	if name == "" || name == "UTC" {
+		return time.UTC
+	}
+	if loc, err := time.LoadLocation(name); err == nil {
+		return loc
+	}
+	return time.UTC
 }
 
 func isAssetPath(path string) bool {
