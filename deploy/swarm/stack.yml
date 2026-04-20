@@ -48,6 +48,7 @@ services:
     restart: unless-stopped
     environment:
       ADDR: :8080
+      APP_VERSION: ${GLYCOVIEW_TAG:-dev}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       DATABASE_URL: postgres://${POSTGRES_USER:-glycoview}:${POSTGRES_PASSWORD:-glycoview}@postgres:5432/${POSTGRES_DB:-glycoview}?sslmode=disable
       GLYCOVIEW_AGENT_URL: http://glycoview-agent:8090

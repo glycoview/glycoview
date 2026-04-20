@@ -44,6 +44,7 @@ func NewRouter(dep Dependencies) http.Handler {
 			body := map[string]any{
 				"setupRequired": !hasUsers,
 				"authenticated": false,
+				"appVersion":    dep.Config.AppVersion,
 			}
 			if token != "" {
 				user, err := dep.AppAuth.CurrentUser(r.Context(), token)
