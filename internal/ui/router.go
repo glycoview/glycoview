@@ -89,7 +89,9 @@ func NewRouter(dep Dependencies) http.Handler {
 				return
 			}
 			dep.AppAuth.SetSessionCookie(w, r, token)
-			httpx.WriteJSON(w, http.StatusOK, map[string]any{"user": user})
+			// Mobile clients (and anything that can't persist HttpOnly cookies)
+			// need the session token back in the body. Web clients ignore it.
+			httpx.WriteJSON(w, http.StatusOK, map[string]any{"user": user, "token": token})
 		})
 		r.Post("/auth/logout", func(w http.ResponseWriter, r *http.Request) {
 			_ = dep.AppAuth.Logout(r.Context(), dashboardauth.SessionTokenFromRequest(r))

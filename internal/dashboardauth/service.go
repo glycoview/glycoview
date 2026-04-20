@@ -240,11 +240,22 @@ func (s *Service) ClearSessionCookie(w http.ResponseWriter, r *http.Request) {
 }
 
 func SessionTokenFromRequest(r *http.Request) string {
-	cookie, err := r.Cookie(SessionCookieName)
-	if err != nil {
-		return ""
+	if cookie, err := r.Cookie(SessionCookieName); err == nil {
+		if v := strings.TrimSpace(cookie.Value); v != "" {
+			return v
+		}
 	}
-	return strings.TrimSpace(cookie.Value)
+	// Mobile clients can't persist HttpOnly cookies reliably, so accept the
+	// session token via a Bearer header too. JWTs used by the Nightscout API
+	// are three-segment tokens; dashboard session tokens are plain hex
+	// strings so there's no ambiguity.
+	if auth := strings.TrimSpace(r.Header.Get("Authorization")); strings.HasPrefix(auth, "Bearer ") {
+		tok := strings.TrimSpace(strings.TrimPrefix(auth, "Bearer "))
+		if tok != "" && !strings.Contains(tok, ".") {
+			return tok
+		}
+	}
+	return ""
 }
 
 func (s *Service) createUserAndSession(ctx context.Context, username, password, displayName, role string) (UserSummary, string, error) {
