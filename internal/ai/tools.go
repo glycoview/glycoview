@@ -65,19 +65,25 @@ type excursionArgs struct {
 
 func toolNow() ToolDef {
 	return ToolDef{
-		Name:        "now",
-		Description: "Returns the current server time as an ISO-8601 string and unix milliseconds. Always call this first so you know what 'today' means.",
+		Name: "now",
+		Description: "Returns the current time AND the user's current local-day window. Always call this first so you know what 'today' means. Use localDayStartMs/localDayEndMs when the user asks about 'today' — do NOT manually compute UTC midnight, that would skip the user's early-morning hours.",
 		Schema: map[string]any{
 			"type":       "object",
 			"properties": map[string]any{},
 		},
-		Handler: func(_ context.Context, _ Deps, _ json.RawMessage) (any, error) {
-			now := time.Now().UTC()
+		Handler: func(ctx context.Context, _ Deps, _ json.RawMessage) (any, error) {
+			loc := LocationFromContext(ctx)
+			now := time.Now().In(loc)
+			dayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+			dayEnd := dayStart.Add(24 * time.Hour)
 			return map[string]any{
-				"iso":  now.Format(time.RFC3339),
-				"ms":   now.UnixMilli(),
-				"tz":   "UTC",
-				"note": "All other tools accept unix-millisecond timestamps. Use this as the reference time.",
+				"nowIso":          now.Format(time.RFC3339),
+				"nowMs":           now.UnixMilli(),
+				"timeZone":        loc.String(),
+				"localDate":       now.Format("2006-01-02"),
+				"localDayStartMs": dayStart.UnixMilli(),
+				"localDayEndMs":   dayEnd.UnixMilli(),
+				"note":            "The user's day started at localDayStartMs in " + loc.String() + ". Pass these unix-ms boundaries to compute_tir / compute_stats / get_glucose for 'today'.",
 			}, nil
 		},
 	}
@@ -100,7 +106,7 @@ func toolComputeTIR() ToolDef {
 			if err := json.Unmarshal(raw, &args); err != nil {
 				return nil, err
 			}
-			start, end, err := parseRange(args.StartMs, args.EndMs)
+			start, end, err := parseRangeInTZ(ctx, args.StartMs, args.EndMs)
 			if err != nil {
 				return nil, err
 			}
@@ -129,7 +135,7 @@ func toolComputeStats() ToolDef {
 			if err := json.Unmarshal(raw, &args); err != nil {
 				return nil, err
 			}
-			start, end, err := parseRange(args.StartMs, args.EndMs)
+			start, end, err := parseRangeInTZ(ctx, args.StartMs, args.EndMs)
 			if err != nil {
 				return nil, err
 			}
@@ -216,7 +222,7 @@ func toolGetGlucose() ToolDef {
 			if err := json.Unmarshal(raw, &args); err != nil {
 				return nil, err
 			}
-			start, _, err := parseRange(args.StartMs, args.EndMs)
+			start, _, err := parseRangeInTZ(ctx, args.StartMs, args.EndMs)
 			if err != nil {
 				return nil, err
 			}
@@ -254,7 +260,7 @@ func toolGetTreatments() ToolDef {
 			if err := json.Unmarshal(raw, &args); err != nil {
 				return nil, err
 			}
-			start, _, err := parseRange(args.StartMs, args.EndMs)
+			start, _, err := parseRangeInTZ(ctx, args.StartMs, args.EndMs)
 			if err != nil {
 				return nil, err
 			}
@@ -298,7 +304,7 @@ func toolListExcursions() ToolDef {
 			if err := json.Unmarshal(raw, &args); err != nil {
 				return nil, err
 			}
-			start, _, err := parseRange(args.StartMs, args.EndMs)
+			start, _, err := parseRangeInTZ(ctx, args.StartMs, args.EndMs)
 			if err != nil {
 				return nil, err
 			}
@@ -364,6 +370,19 @@ func parseRange(startMs, endMs int64) (time.Time, time.Time, error) {
 		return time.Time{}, time.Time{}, fmt.Errorf("endMs (%d) must be greater than startMs (%d)", endMs, startMs)
 	}
 	return time.UnixMilli(startMs).UTC(), time.UnixMilli(endMs).UTC(), nil
+}
+
+// parseRangeInTZ is like parseRange but preserves the user's timezone from
+// context on the returned time.Time values. Downstream ui.Service methods use
+// .Location() to align day boundaries, so this keeps tool windows on local
+// midnight instead of UTC midnight.
+func parseRangeInTZ(ctx context.Context, startMs, endMs int64) (time.Time, time.Time, error) {
+	start, end, err := parseRange(startMs, endMs)
+	if err != nil {
+		return start, end, err
+	}
+	loc := LocationFromContext(ctx)
+	return start.In(loc), end.In(loc), nil
 }
 
 func daysBetween(start, end time.Time) int {

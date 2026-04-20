@@ -91,9 +91,26 @@ func (s *Service) RunChat(ctx context.Context, req ChatRequest, emit Emit) error
 	}
 	client := openai.NewClient(opts...)
 
+	// Anchor tool-time-math to the caller's timezone for the whole run.
+	if tz := strings.TrimSpace(req.UserTimeZone); tz != "" {
+		ctx = WithTimeZone(ctx, tz)
+	}
+
 	// Seed the conversation: system prompt + user/assistant history from caller.
 	messages := []openai.ChatCompletionMessageParamUnion{
 		openai.SystemMessage(systemPrompt),
+	}
+	// Second system message with the user's live timezone context so the
+	// model plans windows in local time from the first turn.
+	if tz := strings.TrimSpace(req.UserTimeZone); tz != "" {
+		if loc, err := time.LoadLocation(tz); err == nil {
+			now := time.Now().In(loc)
+			dayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
+			messages = append(messages, openai.SystemMessage(fmt.Sprintf(
+				"User timezone: %s. Current local time: %s. Today's local-day window starts at %d ms. When the user says 'today' use that start and add 24h for the end — never UTC midnight.",
+				tz, now.Format(time.RFC3339), dayStart.UnixMilli(),
+			)))
+		}
 	}
 	for _, m := range req.Messages {
 		converted, err := convertMessage(m)

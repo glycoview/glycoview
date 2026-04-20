@@ -25,8 +25,9 @@ type ToolCall struct {
 }
 
 type ChatRequest struct {
-	Messages []ChatMessage `json:"messages"`
-	Model    string        `json:"model,omitempty"` // optional override
+	Messages     []ChatMessage `json:"messages"`
+	Model        string        `json:"model,omitempty"`        // optional override
+	UserTimeZone string        `json:"userTimeZone,omitempty"` // IANA name, e.g. Europe/Berlin
 }
 
 type Settings struct {
