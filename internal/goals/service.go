@@ -141,7 +141,7 @@ func (s Service) Preview(ctx context.Context, pred Predicate, targetDate string,
 	if err != nil {
 		return nil, err
 	}
-	p := Evaluate(pred, targetDate, samples, tz)
+	p := Evaluate(pred, "", targetDate, samples, tz)
 	return &p, nil
 }
 
@@ -200,7 +200,7 @@ func (s Service) evaluate(ctx context.Context, g Goal, tz *time.Location) (*Prog
 	if err != nil {
 		return nil, err
 	}
-	p := Evaluate(g.Predicate, g.TargetDate, samples, tz)
+	p := Evaluate(g.Predicate, g.StartDate, g.TargetDate, samples, tz)
 	if g.Status == StatusAchieved {
 		p.State = StateAchieved
 		p.Narrative = "Achieved."

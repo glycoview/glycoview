@@ -11,9 +11,10 @@ import (
 // Progress payload: current aggregate value, a daily value series for the
 // chart, a linear trajectory, and an achievement state.
 //
-// windowEnd is "now" in the user's timezone; windowStart = windowEnd -
-// predicate.Window.Days.
-func Evaluate(pred Predicate, targetDate string, samples []Sample, tz *time.Location) Progress {
+// windowEnd is "now" in the user's timezone; windowStart = max(windowEnd -
+// predicate.Window.Days, goal.StartDate). Clamping to StartDate matters —
+// you shouldn't get to "pass" a goal using data that predates it.
+func Evaluate(pred Predicate, startDate, targetDate string, samples []Sample, tz *time.Location) Progress {
 	if tz == nil {
 		tz = time.UTC
 	}
@@ -27,6 +28,16 @@ func Evaluate(pred Predicate, targetDate string, samples []Sample, tz *time.Loca
 	}
 	end := time.Now().In(tz)
 	start := end.AddDate(0, 0, -days)
+	// Clamp window start to goal start so the evaluator never rewards (or
+	// punishes) the user for days before the goal existed.
+	if startDate != "" {
+		if gs, err := time.ParseInLocation("2006-01-02", startDate, tz); err == nil {
+			gs = time.Date(gs.Year(), gs.Month(), gs.Day(), 0, 0, 0, 0, tz)
+			if gs.After(start) {
+				start = gs
+			}
+		}
+	}
 
 	// Slice samples to window.
 	inWindow := make([]Sample, 0, len(samples))
