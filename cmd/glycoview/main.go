@@ -7,6 +7,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	// Embed Go's IANA timezone database so time.LoadLocation works on
+	// minimal images (alpine, distroless) that don't ship /usr/share/zoneinfo.
+	_ "time/tzdata"
 
 	"github.com/glycoview/glycoview/internal/api"
 	"github.com/glycoview/glycoview/internal/auth"
