@@ -19,7 +19,7 @@ import (
 // than in ui so that ai can depend on ui without an import cycle.
 func (s *Server) mountAIRoutes(r chi.Router) {
 	uiService := ui.Service{Config: s.Config, Store: s.Store}
-	svc := ai.NewService(ai.Deps{UI: uiService}, s.AppAuth)
+	svc := ai.NewService(ai.Deps{UI: uiService, Goals: s.Goals}, s.AppAuth)
 
 	adminOnly := func(next func(http.ResponseWriter, *http.Request, dashboardauth.UserSummary)) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {

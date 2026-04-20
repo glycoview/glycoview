@@ -8,6 +8,7 @@ import (
 	"github.com/glycoview/glycoview/internal/auth"
 	"github.com/glycoview/glycoview/internal/config"
 	"github.com/glycoview/glycoview/internal/dashboardauth"
+	"github.com/glycoview/glycoview/internal/goals"
 	"github.com/glycoview/glycoview/internal/store/memory"
 )
 
@@ -34,7 +35,11 @@ func NewHarnessWithConfig(cfg config.Config) *Harness {
 	authManager := auth.New(cfg.APISecret, cfg.DefaultRoles, cfg.JWTSecret)
 	store := memory.New()
 	appAuth := dashboardauth.NewService(dashboardauth.NewMemoryStore())
-	server := httptest.NewServer(api.New(cfg, store, authManager, appAuth))
+	goalsService := &goals.Service{
+		Store:   goals.NewMemoryStore(),
+		Samples: goals.NightscoutStoreSource{Store: store},
+	}
+	server := httptest.NewServer(api.New(cfg, store, authManager, appAuth, goalsService))
 	return &Harness{
 		Config:  &cfg,
 		Store:   store,

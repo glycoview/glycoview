@@ -23,7 +23,7 @@ type Config struct {
 func Load() Config {
 	return Config{
 		Addr:           envOrDefault("ADDR", ":8080"),
-		AppVersion:     envOrDefault("APP_VERSION", "0.1.0"),
+		AppVersion:     envOrDefault("APP_VERSION", "0.2.0"),
 		APISecret:      envOrDefault("API_SECRET", "change-me"),
 		JWTSecret:      envOrDefault("JWT_SECRET", envOrDefault("API_SECRET", "change-me")),
 		DatabaseURL:    os.Getenv("DATABASE_URL"),

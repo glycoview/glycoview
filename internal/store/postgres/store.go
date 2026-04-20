@@ -127,6 +127,11 @@ func (s *Store) Close() {
 	}
 }
 
+// Pool returns the underlying pgxpool. Other packages that want to share the
+// same connection pool (e.g. internal/goals) can call this instead of opening
+// a second pool against the same database.
+func (s *Store) Pool() *pgxpool.Pool { return s.pool }
+
 func (s *Store) Create(ctx context.Context, collection string, data map[string]any, subject string) (model.Record, bool, error) {
 	clean, err := store.NormalizeData(collection, data)
 	if err != nil {

@@ -8,6 +8,7 @@ import (
 	"sort"
 	"time"
 
+	"github.com/glycoview/glycoview/internal/goals"
 	"github.com/glycoview/glycoview/internal/ui"
 )
 
@@ -26,7 +27,8 @@ type ToolDef struct {
 // Deps bundles the read-only services the tools consume. The AI never writes
 // — it only reads and computes.
 type Deps struct {
-	UI ui.Service
+	UI    ui.Service
+	Goals *goals.Service // optional; enables the get_goals tool
 }
 
 // Registry returns the canonical, ordered list of tools exposed to the model.
@@ -41,6 +43,7 @@ func Registry() []ToolDef {
 		toolListExcursions(),
 		toolGetLatestStatus(),
 		toolGetProfile(),
+		toolGetGoals(),
 	}
 }
 
@@ -359,6 +362,78 @@ func toolGetProfile() ToolDef {
 				return nil, err
 			}
 			return resp, nil
+		},
+	}
+}
+
+type goalsArgs struct {
+	Status string `json:"status"` // active|achieved|paused|archived|all
+}
+
+func toolGetGoals() ToolDef {
+	return ToolDef{
+		Name: "get_goals",
+		Description: "Returns the user's glycemic goals (mathematical predicates like 'TIR 70-180 ≥ 70% over 14 days') with live progress: current value, target, trajectory slope, projected value at target date, days-ahead-of-schedule, and state (smashing|on_track|at_risk|behind|achieved|ongoing). Use this to motivate, diagnose why a goal is at risk, or suggest adjustments. If the user asks about 'my goals' or 'am I on track', call this first.",
+		Schema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"status": map[string]any{
+					"type":        "string",
+					"enum":        []string{"active", "achieved", "paused", "archived", "all"},
+					"description": "Filter by status. Default is 'active'. Use 'all' to include archived goals.",
+				},
+			},
+		},
+		Handler: func(ctx context.Context, deps Deps, raw json.RawMessage) (any, error) {
+			if deps.Goals == nil {
+				return map[string]any{"goals": []any{}, "note": "Goals service not configured."}, nil
+			}
+			var args goalsArgs
+			_ = json.Unmarshal(raw, &args)
+			if args.Status == "" {
+				args.Status = "active"
+			}
+			loc := LocationFromContext(ctx)
+			includeArchived := args.Status == "all" || args.Status == "archived"
+			list, err := deps.Goals.List(ctx, includeArchived, loc)
+			if err != nil {
+				return nil, err
+			}
+			filtered := make([]any, 0, len(list))
+			for _, wp := range list {
+				if args.Status != "all" && string(wp.Goal.Status) != args.Status {
+					continue
+				}
+				entry := map[string]any{
+					"id":         wp.Goal.ID,
+					"title":      wp.Goal.Title,
+					"status":     wp.Goal.Status,
+					"startDate":  wp.Goal.StartDate,
+					"targetDate": wp.Goal.TargetDate,
+					"predicate":  wp.Goal.Predicate,
+					"rationale":  wp.Goal.Rationale,
+					"actionPlan": wp.Goal.ActionPlan,
+				}
+				if wp.Progress != nil {
+					entry["progress"] = map[string]any{
+						"currentValue": wp.Progress.CurrentValue,
+						"targetValue":  wp.Progress.TargetValue,
+						"unit":         wp.Progress.Unit,
+						"met":          wp.Progress.Met,
+						"state":        wp.Progress.State,
+						"narrative":    wp.Progress.Narrative,
+						"nudge":        wp.Progress.Nudge,
+						"trajectory":   wp.Progress.Trajectory,
+						"perUnit":      wp.Progress.PerUnit,
+					}
+				}
+				filtered = append(filtered, entry)
+			}
+			return map[string]any{
+				"timeZone": loc.String(),
+				"count":    len(filtered),
+				"goals":    filtered,
+			}, nil
 		},
 	}
 }

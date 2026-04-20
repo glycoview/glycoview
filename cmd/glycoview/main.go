@@ -15,6 +15,7 @@ import (
 	"github.com/glycoview/glycoview/internal/auth"
 	"github.com/glycoview/glycoview/internal/config"
 	"github.com/glycoview/glycoview/internal/dashboardauth"
+	"github.com/glycoview/glycoview/internal/goals"
 	"github.com/glycoview/glycoview/internal/store"
 	"github.com/glycoview/glycoview/internal/store/memory"
 	postgresstore "github.com/glycoview/glycoview/internal/store/postgres"
@@ -30,6 +31,7 @@ func main() {
 	var dataStore store.Store
 	var accountStore dashboardauth.UserStore
 	var accountCloser interface{ Close() }
+	var goalsStore goals.Store
 	if cfg.DatabaseURL != "" {
 		pgStore, err := postgresstore.New(context.Background(), cfg.DatabaseURL)
 		if err != nil {
@@ -44,9 +46,16 @@ func main() {
 		}
 		accountStore = pgAccounts
 		accountCloser = pgAccounts
+
+		pgGoals, err := goals.NewPostgresStore(context.Background(), pgStore.Pool())
+		if err != nil {
+			log.Fatalf("goals postgres init: %v", err)
+		}
+		goalsStore = pgGoals
 	} else {
 		dataStore = memory.New()
 		accountStore = dashboardauth.NewMemoryStore()
+		goalsStore = goals.NewMemoryStore()
 	}
 	if accountCloser != nil {
 		defer accountCloser.Close()
@@ -73,7 +82,11 @@ func main() {
 		authManager.UpdateAPISecret(cfg.APISecret)
 	}
 
-	handler := api.New(cfg, dataStore, authManager, dashboardAuth)
+	goalsService := &goals.Service{
+		Store:   goalsStore,
+		Samples: goals.NightscoutStoreSource{Store: dataStore},
+	}
+	handler := api.New(cfg, dataStore, authManager, dashboardAuth, goalsService)
 	log.Printf("listening on %s", cfg.Addr)
 	log.Fatal(http.ListenAndServe(cfg.Addr, handler))
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/glycoview/glycoview/internal/auth"
 	"github.com/glycoview/glycoview/internal/config"
 	"github.com/glycoview/glycoview/internal/dashboardauth"
+	"github.com/glycoview/glycoview/internal/goals"
 	"github.com/glycoview/glycoview/internal/store"
 	"github.com/glycoview/glycoview/internal/ui"
 )
@@ -23,14 +24,16 @@ type Server struct {
 	Store   store.Store
 	Auth    *auth.Manager
 	AppAuth *dashboardauth.Service
+	Goals   *goals.Service
 }
 
-func New(cfg config.Config, dataStore store.Store, authManager *auth.Manager, appAuth *dashboardauth.Service) http.Handler {
+func New(cfg config.Config, dataStore store.Store, authManager *auth.Manager, appAuth *dashboardauth.Service, goalsService *goals.Service) http.Handler {
 	server := &Server{
 		Config:  cfg,
 		Store:   dataStore,
 		Auth:    authManager,
 		AppAuth: appAuth,
+		Goals:   goalsService,
 	}
 	return server.routes()
 }
@@ -63,6 +66,7 @@ func (s *Server) routes() http.Handler {
 	r.Mount("/api/v3", nsv3.NewNightscoutV3Router(nsdep))
 
 	s.mountAIRoutes(r)
+	s.mountGoalsRoutes(r)
 
 	r.Get("/api/v2/authorization/request/{accessToken}", func(w http.ResponseWriter, r *http.Request) {
 		token, err := s.Auth.IssueJWT(chi.URLParam(r, "accessToken"))
