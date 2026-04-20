@@ -62,6 +62,8 @@ func (s *Server) routes() http.Handler {
 	r.Mount("/api/v1", nsv1.NewNightscoutV1Router(nsdep))
 	r.Mount("/api/v3", nsv3.NewNightscoutV3Router(nsdep))
 
+	s.mountAIRoutes(r)
+
 	r.Get("/api/v2/authorization/request/{accessToken}", func(w http.ResponseWriter, r *http.Request) {
 		token, err := s.Auth.IssueJWT(chi.URLParam(r, "accessToken"))
 		if err != nil {

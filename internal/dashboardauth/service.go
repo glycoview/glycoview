@@ -193,6 +193,18 @@ func (s *Service) CurrentInstallAPISecret(ctx context.Context) (string, error) {
 	return secret, err
 }
 
+// GetSetting exposes the underlying settings store for other packages that
+// need to persist small admin-owned key/value blobs (e.g. the AI service
+// storing the Ollama API key).
+func (s *Service) GetSetting(ctx context.Context, key string) (string, error) {
+	return s.store.GetSetting(ctx, key)
+}
+
+// SetSetting mirrors GetSetting for writes.
+func (s *Service) SetSetting(ctx context.Context, key, value string) error {
+	return s.store.SetSetting(ctx, key, value)
+}
+
 func (s *Service) EnsureInstallAPISecret(ctx context.Context, configuredAPISecret string) (string, error) {
 	current, err := s.store.GetSetting(ctx, SettingInstallAPISecret)
 	if err == nil && strings.TrimSpace(current) != "" {

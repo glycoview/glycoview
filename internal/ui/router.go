@@ -327,6 +327,7 @@ func requireSessionRole(appAuth *dashboardauth.Service, role string, next func(h
 	}
 }
 
+
 func writeAuthError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.Is(err, dashboardauth.ErrSetupAlreadyDone):
